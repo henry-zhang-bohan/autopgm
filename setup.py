@@ -14,4 +14,14 @@ setup(name='autopgm',
           'pandas >= 0.20.3',
           'pgmpy'
       ],
+      classifiers=[
+          "Programming Language :: Python :: 3.6",
+          "Programming Language :: Python :: 3.5",
+          "Intended Audience :: Developers",
+          "Operating System :: Unix",
+          "Operating System :: POSIX",
+          "Operating System :: Microsoft :: Windows",
+          "Operating System :: MacOS",
+          "Topic :: Scientific/Engineering"
+      ],
       zip_safe=False)
