@@ -7,7 +7,7 @@ class SingleFileParser(object):
         self.file_name = file_name
         self.data_frame = pandas.read_csv(self.file_name)
         self.variables = self.data_frame.columns.values.tolist()
-        self.outbound_variables = set()
+        self.shared_variables = set()
 
     def filter(self, variables):
         variables = list(filter(lambda x: x in self.variables, variables))
@@ -16,7 +16,7 @@ class SingleFileParser(object):
         return self.data_frame
 
     def populate_outbound_variables(self, variables):
-        self.outbound_variables = set(filter(lambda x: x in self.variables, variables))
+        self.shared_variables = set(filter(lambda x: x in self.variables, variables))
 
 
 class MultipleFileParser(object):
@@ -45,15 +45,15 @@ class MultipleFileParser(object):
         # outbound variables
         all_variables = []
         temp_variables = set()
-        self.outbound_variables = set()
+        self.shared_variables = set()
         for file_parser in self.single_file_parsers:
             all_variables.extend(file_parser.variables)
         for variable in all_variables:
             if variable not in temp_variables:
                 temp_variables.add(variable)
             else:
-                self.outbound_variables.add(variable)
+                self.shared_variables.add(variable)
 
         # populate outbound variables
         for file_parser in self.single_file_parsers:
-            file_parser.populate_outbound_variables(self.outbound_variables)
+            file_parser.populate_outbound_variables(self.shared_variables)

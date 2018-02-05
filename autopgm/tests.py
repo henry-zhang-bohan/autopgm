@@ -1,6 +1,7 @@
 from test_data_generator import *
 from merger import *
 from parser import *
+from HillClimbSearch import *
 
 DATA_DIR = 'data/'
 
@@ -48,3 +49,5 @@ if PARSER:
     query_targets = ['L', 'P']
     query_evidence = ['I', 'D']
     mfp = MultipleFileParser(file_names, known_edges, query_targets, query_evidence)
+
+# hill climb search
