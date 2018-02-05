@@ -61,7 +61,7 @@ class PGMGraph(object):
 
 
 class CSVWriter(object):
-    def __init__(self, model, file_name, size=50):
+    def __init__(self, model, file_name, size=100):
         self.model = model
         self.size = size
         self.file_name = file_name
@@ -120,7 +120,6 @@ class ModelVerifier(object):
         self.model = BayesianModel(edges)
         self.data_frame = pandas.read_csv(file_name)
         self.model.fit(self.data_frame, estimator=MaximumLikelihoodEstimator)
-        print()
 
     def get_cpds(self):
         return self.model.get_cpds()

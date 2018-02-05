@@ -11,7 +11,7 @@ setup(name='autopgm',
       install_requires=[
           'scipy >= 0.19.1',
           'numpy >= 1.14.0',
-          'pandas >= 0.20.3',
+          'pandas = 0.20.3',
           'pgmpy'
       ],
       classifiers=[
