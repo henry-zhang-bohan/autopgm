@@ -61,7 +61,7 @@ class PGMGraph(object):
 
 
 class CSVWriter(object):
-    def __init__(self, model, file_name, size=100):
+    def __init__(self, model, file_name, size=10000):
         self.model = model
         self.size = size
         self.file_name = file_name
@@ -130,9 +130,9 @@ class ModelVerifier(object):
             print(cpd)
 
 
-class StudentModel(object):
+class StudentModel1(object):
     def __init__(self):
-        student_model = BayesianModel([('D', 'G'), ('I', 'G'), ('G', 'L'), ('I', 'S')])
+        student_model_1 = BayesianModel([('D', 'G'), ('I', 'G'), ('G', 'L'), ('I', 'S')])
 
         grade_cpd = TabularCPD(
             variable='G',
@@ -169,5 +169,31 @@ class StudentModel(object):
             evidence=['I'],
             evidence_card=[2])
 
-        student_model.add_cpds(grade_cpd, difficulty_cpd, intel_cpd, letter_cpd, sat_cpd)
-        self.model = student_model
+        student_model_1.add_cpds(grade_cpd, difficulty_cpd, intel_cpd, letter_cpd, sat_cpd)
+        self.model = student_model_1
+
+
+class StudentModel2(object):
+    def __init__(self):
+        student_model_2 = BayesianModel([('D', 'P'), ('I', 'P')])
+
+        difficulty_cpd = TabularCPD(
+            variable='D',
+            variable_card=2,
+            values=[[0.6, 0.4]])
+
+        intel_cpd = TabularCPD(
+            variable='I',
+            variable_card=2,
+            values=[[0.7, 0.3]])
+
+        pass_cpd = TabularCPD(
+            variable='P',
+            variable_card=2,
+            values=[[0.7, 0.2, 0.9, 0.6],
+                    [0.3, 0.8, 0.1, 0.4]],
+            evidence=['I', 'D'],
+            evidence_card=[2, 2])
+
+        student_model_2.add_cpds(difficulty_cpd, intel_cpd, pass_cpd)
+        self.model = student_model_2

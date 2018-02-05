@@ -105,3 +105,6 @@ ENV/
 
 # DS_Store
 .DS_Store
+
+# data folder
+autopgm/data/
