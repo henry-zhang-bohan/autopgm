@@ -1,4 +1,5 @@
 from pgmpy.models import BayesianModel
+from pgmpy.factors.discrete import TabularCPD
 
 
 class BayesianMerger(object):
@@ -22,7 +23,8 @@ class BayesianMerger(object):
 
         # new model
         self.model = BayesianModel(self.edges)
-        self.model.add_cpds(list(self.cpds.values()))
+        for cpd in self.cpds.values():
+            self.model.add_cpds(cpd)
 
         if self.model.check_model():
             return self.model
