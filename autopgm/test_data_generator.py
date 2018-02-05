@@ -1,7 +1,9 @@
 import numpy as np
+import pandas
 import random
 from pgmpy.models import BayesianModel
 from pgmpy.factors.discrete import TabularCPD
+from pgmpy.estimators import MaximumLikelihoodEstimator
 
 
 class Node(object):
@@ -59,7 +61,7 @@ class PGMGraph(object):
 
 
 class CSVWriter(object):
-    def __init__(self, model, file_name, size=1000):
+    def __init__(self, model, file_name, size=50):
         self.model = model
         self.size = size
         self.file_name = file_name
@@ -97,18 +99,36 @@ class CSVWriter(object):
         accumulated_prob = []
         for i in range(len(reduced_prob)):
             accumulated_prob.append(sum(reduced_prob[:i + 1]))
+        accumulated_prob.insert(0, 0)
 
         # generate prediction of state
         random_number = random.random()
-        state = 0
-        for i in range(len(reduced_prob)):
-            if random_number < reduced_prob[i]:
-                state = i
+        for i in range(1, len(accumulated_prob)):
+            if random_number >= accumulated_prob[i - 1] and random_number < accumulated_prob[i]:
+                state = i - 1
 
         return state
 
     def write_to_csv(self):
         np.savetxt(self.file_name, self.data, fmt='%i', delimiter=',', header=','.join(self.order), comments='')
+
+
+class ModelVerifier(object):
+    def __init__(self, file_name, edges):
+        self.file_name = file_name
+        self.edges = edges
+        self.model = BayesianModel(edges)
+        self.data_frame = pandas.read_csv(file_name)
+        self.model.fit(self.data_frame, estimator=MaximumLikelihoodEstimator)
+        print()
+
+    def get_cpds(self):
+        return self.model.get_cpds()
+
+    def print_cpds(self):
+        for cpd in self.model.get_cpds():
+            print("CPD of {variable}:".format(variable=cpd.variable))
+            print(cpd)
 
 
 class StudentModel(object):
