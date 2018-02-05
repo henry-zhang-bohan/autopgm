@@ -1,5 +1,6 @@
 from test_data_generator import *
 from merger import *
+from parser import *
 
 DATA_DIR = 'data/'
 
@@ -35,3 +36,15 @@ if MERGER:
             print(cpd)
     else:
         print('Model not valid.')
+
+# parser
+PARSER = True
+if PARSER:
+    file_names = [
+        DATA_DIR + 'student1.csv',
+        DATA_DIR + 'student2.csv'
+    ]
+    known_edges = [('I', 'G')]
+    query_targets = ['L', 'P']
+    query_evidence = ['I', 'D']
+    mfp = MultipleFileParser(file_names, known_edges, query_targets, query_evidence)
