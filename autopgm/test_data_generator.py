@@ -1,15 +1,14 @@
 import numpy as np
-import pandas
+import random
 from pgmpy.models import BayesianModel
 from pgmpy.factors.discrete import TabularCPD
 
 
-class CSVWriter(object):
-    def __init__(self, model):
-        """
-        :param model: pgmpy model
-        """
-        self.model = model
+class Node(object):
+    def __init__(self, name, parents):
+        self.name = name
+        self.visited = False
+        self.parents = parents
 
 
 class PGMGraph(object):
@@ -59,6 +58,59 @@ class PGMGraph(object):
         return list(reversed(stack))
 
 
+class CSVWriter(object):
+    def __init__(self, model, file_name, size=1000):
+        self.model = model
+        self.size = size
+        self.file_name = file_name
+        self.graph = PGMGraph(self.model)
+        self.order = self.graph.topological_sort()
+
+        # populate cpds
+        self.cpds = {}
+        for cpd in self.model.get_cpds():
+            self.cpds[cpd.variable] = cpd
+
+        # initialize data
+        self.data = np.zeros((self.size, len(self.order)), dtype=np.int)
+        self.populate_data()
+
+        # write to csv
+        self.write_to_csv()
+
+    def populate_data(self):
+        for j in range(len(self.order)):
+            col = self.order[j]
+            for i in range(self.size):
+                self.data[i, j] = self.calculate_single_data(col, i)
+
+    def calculate_single_data(self, col, i):
+        parents = self.cpds[col].variables[1:]
+        parents_value = []
+        for parent in parents:
+            parents_value.append((parent, int(self.data[i, self.order.index(parent)])))
+
+        # get probability distribution
+        cpd_copy = self.cpds[col].copy()
+        cpd_copy.reduce(parents_value)
+        reduced_prob = cpd_copy.get_values().flatten()
+        accumulated_prob = []
+        for i in range(len(reduced_prob)):
+            accumulated_prob.append(sum(reduced_prob[:i + 1]))
+
+        # generate prediction of state
+        random_number = random.random()
+        state = 0
+        for i in range(len(reduced_prob)):
+            if random_number < reduced_prob[i]:
+                state = i
+
+        return state
+
+    def write_to_csv(self):
+        np.savetxt(self.file_name, self.data, fmt='%i', delimiter=',', header=','.join(self.order), comments='')
+
+
 class StudentModel(object):
     def __init__(self):
         student_model = BayesianModel([('D', 'G'), ('I', 'G'), ('G', 'L'), ('I', 'S')])
@@ -100,16 +152,3 @@ class StudentModel(object):
 
         student_model.add_cpds(grade_cpd, difficulty_cpd, intel_cpd, letter_cpd, sat_cpd)
         self.model = student_model
-
-
-class Node(object):
-    def __init__(self, name, parents):
-        self.name = name
-        self.visited = False
-        self.parents = parents
-
-
-if __name__ == '__main__':
-    sm = StudentModel().model
-    pgm_graph = PGMGraph(sm)
-    order = pgm_graph.topological_sort()
