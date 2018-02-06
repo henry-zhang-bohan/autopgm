@@ -19,7 +19,8 @@ class BayesianMerger(object):
                     self.cpds[cpd.variable] = cpd
                 else:
                     # TODO: this is temporary; we should consider how to approach this problem
-                    self.cpds[cpd.variable] = cpd
+                    if len(cpd.variables) > len(self.cpds[cpd.variable].variables):
+                        self.cpds[cpd.variable] = cpd
 
         # new model
         self.model = BayesianModel(self.edges)

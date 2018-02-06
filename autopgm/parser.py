@@ -44,7 +44,7 @@ class MultipleFileParser(object):
         for file_parser in self.single_file_parsers:
             self.variables.update(file_parser.variables)
 
-        # outbound variables
+        # shared variables
         all_variables = []
         temp_variables = set()
         self.shared_variables = set()
@@ -56,6 +56,53 @@ class MultipleFileParser(object):
             else:
                 self.shared_variables.add(variable)
 
-        # populate outbound variables
+        # populate shared variables
         for file_parser in self.single_file_parsers:
             file_parser.populate_shared_variables(self.shared_variables)
+
+        # orientations of shared variables
+        self.shared_variable_dict = {}
+        for i in range(len(self.single_file_parsers)):
+            variables = self.single_file_parsers[i].variables
+            for variable in variables:
+                if variable not in self.shared_variable_dict.keys():
+                    self.shared_variable_dict[variable] = [i]
+                else:
+                    self.shared_variable_dict[variable].append(i)
+        self.shared_dict = {}
+        for variable in self.shared_variable_dict.keys():
+            if len(self.shared_variable_dict[variable]) > 1:
+                self.shared_dict[variable] = self.shared_variable_dict[variable][:]
+
+        # permutations of orientations
+        self.orientation_candidates = {}
+        for variable in self.shared_dict.keys():
+            self.orientation_candidates[variable] = []
+            # all outbound
+            current_orientation = {}
+            for position in self.shared_dict[variable]:
+                current_orientation[position] = 0
+            self.orientation_candidates[variable].append(current_orientation)
+            # one inbound, rest outbound
+            for i in self.shared_dict[variable]:
+                current_orientation = {}
+                for position in self.shared_dict[variable]:
+                    if position == i:
+                        current_orientation[position] = 1
+                    else:
+                        current_orientation[position] = 0
+                self.orientation_candidates[variable].append(current_orientation)
+
+        self.orientations = []
+        for variable in self.orientation_candidates.keys():
+            if len(self.orientations) == 0:
+                for orientation in self.orientation_candidates[variable]:
+                    self.orientations.append({variable: orientation})
+            else:
+                new_orientations = []
+                for old_orientation in self.orientations:
+                    for new_orientation in self.orientation_candidates[variable]:
+                        orientation_copy = old_orientation.copy()
+                        orientation_copy[variable] = new_orientation
+                        new_orientations.append(orientation_copy)
+                self.orientations = new_orientations

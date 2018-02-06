@@ -54,5 +54,32 @@ if PARSER:
 # hill climb search
 HILL_CLIMB_SEARCH = True
 if HILL_CLIMB_SEARCH:
-    sm = MultipleBayesianEstimator(mfp).merged_model
+    mbe = MultipleBayesianEstimator(mfp)
+    sm = mbe.merged_model
+
+    # edges
+    print('Edges:', sm.edges)
+    print('--------------------')
+
+    # print cpds
+    for cpd in sm.get_cpds():
+        print("CPD of {variable}:".format(variable=cpd.variable))
+        print(cpd)
+
     inference = VariableElimination(sm)
+
+    # SAT samples
+    print('----- SAT: Unknown -----')
+    print(inference.query(['P'])['P'])
+    print('----- SAT: 0 -----')
+    print(inference.query(['P'], evidence={'S': 0})['P'])
+    print('----- SAT: 1 -----')
+    print(inference.query(['P'], evidence={'S': 1})['P'])
+
+    # Letter samples
+    print('----- Letter: Unknown -----')
+    print(inference.query(['P'])['P'])
+    print('----- Letter: 0 -----')
+    print(inference.query(['P'], evidence={'L': 0})['P'])
+    print('----- Letter: 1 -----')
+    print(inference.query(['P'], evidence={'L': 1})['P'])
