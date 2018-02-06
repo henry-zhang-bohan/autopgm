@@ -1,5 +1,5 @@
 from HillClimbSearch import HillClimbSearch
-from pgmpy.estimators import StructureEstimator, K2Score, BicScore
+from merger import BayesianMerger
 
 
 class SingleBayesianEstimator(object):
@@ -16,3 +16,16 @@ class SingleBayesianEstimator(object):
     def fit(self):
         self.model.fit(self.single_file_parser.data_frame)
         return self.model
+
+
+class MultipleBayesianEstimator(object):
+    def __init__(self, multiple_file_parser):
+        self.multiple_file_parser = multiple_file_parser
+        self.bayesian_estimators = [SingleBayesianEstimator(x) for x in self.multiple_file_parser.single_file_parsers]
+        self.models = []
+
+        for estimator in self.bayesian_estimators:
+            estimator.initial_edge_estimate()
+            self.models.append(estimator.fit())
+
+        self.merged_model = BayesianMerger(self.models).merge()
