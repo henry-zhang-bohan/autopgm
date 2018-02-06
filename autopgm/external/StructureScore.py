@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from base import BaseEstimator
+from external.base import BaseEstimator
 
 
 class StructureScore(BaseEstimator):

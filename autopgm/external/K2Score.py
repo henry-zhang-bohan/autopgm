@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from math import lgamma
 
-from StructureScore import StructureScore
+from external.StructureScore import StructureScore
 
 
 class K2Score(StructureScore):

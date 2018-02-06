@@ -1,6 +1,6 @@
-from HillClimbSearch import HillClimbSearch
+from external.HillClimbSearch import HillClimbSearch
+from external.K2Score import K2Score
 from merger import BayesianMerger
-from K2Score import K2Score
 from math import inf
 
 
@@ -24,19 +24,6 @@ class SingleBayesianEstimator(object):
 
 
 class MultipleBayesianEstimator(object):
-    """
-    def __init__(self, multiple_file_parser):
-        self.multiple_file_parser = multiple_file_parser
-        self.bayesian_estimators = [SingleBayesianEstimator(x) for x in self.multiple_file_parser.single_file_parsers]
-        self.models = []
-
-        for estimator in self.bayesian_estimators:
-            estimator.initial_edge_estimate()
-            self.models.append(estimator.fit())
-
-        self.merged_model = BayesianMerger(self.models).merge()
-    """
-
     def __init__(self, multiple_file_parser):
         self.orientations = multiple_file_parser.orientations
         self.merged_model = None

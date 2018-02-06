@@ -1,5 +1,4 @@
 import pandas
-import numpy as np
 
 
 class SingleFileParser(object):
@@ -27,17 +26,16 @@ class MultipleFileParser(object):
         self.query_evidence = query_evidence
         self.relevant_variables = query_targets + query_evidence
 
+        self.shared_variable_dict = {}
+        self.shared_dict = {}
+        self.orientation_candidates = {}
+        self.orientations = []
+
         # parse all files
         self.single_file_parsers = list(map(lambda x: SingleFileParser(x), self.file_names))
         self.variables = set()
         for file_parser in self.single_file_parsers:
             self.variables.update(file_parser.variables)
-
-        """
-        # select relevant columns
-        for file_parser in self.single_file_parsers:
-            file_parser.filter(self.relevant_variables)
-        """
 
         # update variables
         self.variables = set()
@@ -60,8 +58,11 @@ class MultipleFileParser(object):
         for file_parser in self.single_file_parsers:
             file_parser.populate_shared_variables(self.shared_variables)
 
+        # orientations
+        self.calculate_orientations()
+
+    def calculate_orientations(self):
         # orientations of shared variables
-        self.shared_variable_dict = {}
         for i in range(len(self.single_file_parsers)):
             variables = self.single_file_parsers[i].variables
             for variable in variables:
@@ -69,13 +70,12 @@ class MultipleFileParser(object):
                     self.shared_variable_dict[variable] = [i]
                 else:
                     self.shared_variable_dict[variable].append(i)
-        self.shared_dict = {}
+
         for variable in self.shared_variable_dict.keys():
             if len(self.shared_variable_dict[variable]) > 1:
                 self.shared_dict[variable] = self.shared_variable_dict[variable][:]
 
         # permutations of orientations
-        self.orientation_candidates = {}
         for variable in self.shared_dict.keys():
             self.orientation_candidates[variable] = []
             # all outbound
@@ -93,7 +93,7 @@ class MultipleFileParser(object):
                         current_orientation[position] = 0
                 self.orientation_candidates[variable].append(current_orientation)
 
-        self.orientations = []
+        # orientation options
         for variable in self.orientation_candidates.keys():
             if len(self.orientations) == 0:
                 for orientation in self.orientation_candidates[variable]:
