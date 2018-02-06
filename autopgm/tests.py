@@ -1,7 +1,8 @@
 from test_data_generator import *
 from merger import *
 from parser import *
-from HillClimbSearch import *
+from single_network_estimator import *
+from pgmpy.inference import VariableElimination
 
 DATA_DIR = 'data/'
 
@@ -51,3 +52,9 @@ if PARSER:
     mfp = MultipleFileParser(file_names, known_edges, query_targets, query_evidence)
 
 # hill climb search
+HILL_CLIMB_SEARCH = True
+if HILL_CLIMB_SEARCH:
+    sne = SingleBayesianEstimator(mfp.single_file_parsers[0])
+    print(sne.initial_edge_estimate())
+    sm = (sne.fit())
+    inference = VariableElimination(sm)

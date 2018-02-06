@@ -9,5 +9,10 @@ class SingleBayesianEstimator(object):
                                                  outbound_nodes=self.single_file_parser.shared_variables)
         self.model = None
 
-    def initial_estimate(self):
+    def initial_edge_estimate(self):
         self.model = self.hill_climb_search.estimate(tabu_length=3)
+        return self.model.edges
+
+    def fit(self):
+        self.model.fit(self.single_file_parser.data_frame)
+        return self.model

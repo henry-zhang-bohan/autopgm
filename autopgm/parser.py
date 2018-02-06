@@ -15,7 +15,7 @@ class SingleFileParser(object):
         self.variables = self.data_frame.columns.values.tolist()
         return self.data_frame
 
-    def populate_outbound_variables(self, variables):
+    def populate_shared_variables(self, variables):
         self.shared_variables = set(filter(lambda x: x in self.variables, variables))
 
 
@@ -33,9 +33,11 @@ class MultipleFileParser(object):
         for file_parser in self.single_file_parsers:
             self.variables.update(file_parser.variables)
 
+        """
         # select relevant columns
         for file_parser in self.single_file_parsers:
             file_parser.filter(self.relevant_variables)
+        """
 
         # update variables
         self.variables = set()
@@ -56,4 +58,4 @@ class MultipleFileParser(object):
 
         # populate outbound variables
         for file_parser in self.single_file_parsers:
-            file_parser.populate_outbound_variables(self.shared_variables)
+            file_parser.populate_shared_variables(self.shared_variables)
