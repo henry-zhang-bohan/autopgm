@@ -5,7 +5,7 @@ from pgmpy.models import BayesianModel
 
 
 class HillClimbSearch(StructureEstimator):
-    def __init__(self, data, scoring_method=None, **kwargs):
+    def __init__(self, data, scoring_method=None, inbound_nodes=[], outbound_nodes=[], **kwargs):
         """
         Class for heuristic hill climb searches for BayesianModels, to learn
         network structure from data. `estimate` attempts to find a model with optimal score.
@@ -37,9 +37,12 @@ class HillClimbSearch(StructureEstimator):
         else:
             self.scoring_method = K2Score(data, **kwargs)
 
+        self.inbound_nodes = inbound_nodes
+        self.outbound_nodes = outbound_nodes
+
         super(HillClimbSearch, self).__init__(data, **kwargs)
 
-    def _legal_operations(self, model, tabu_list=[], max_indegree=None, inbound_nodes=[], outbound_nodes=[]):
+    def _legal_operations(self, model, tabu_list=[], max_indegree=None):
         """Generates a list of legal (= not in tabu_list) graph modifications
         for a given model, together with their score changes. Possible graph modifications:
         (1) add, (2) remove, or (3) flip a single edge. For details on scoring
@@ -52,12 +55,12 @@ class HillClimbSearch(StructureEstimator):
 
         # inbound nodes: outbound edges of prohibited
         prohibited_outbound_edges = set()
-        for node in inbound_nodes:
+        for node in self.inbound_nodes:
             prohibited_outbound_edges.update([(node, X) for X in nodes])
 
         # outbound nodes: inbound edges of prohibited
         prohibited_inbound_edges = set()
-        for node in outbound_nodes:
+        for node in self.outbound_nodes:
             prohibited_inbound_edges.update([(X, node) for X in nodes])
 
         potential_new_edges = (set(permutations(nodes, 2)) -
@@ -67,10 +70,10 @@ class HillClimbSearch(StructureEstimator):
                                prohibited_inbound_edges)
 
         for (X, Y) in potential_new_edges:  # (1) add single edge
-            if nx.is_directed_acyclic_graph(nx.DiGraph(model.edges() + [(X, Y)])):
+            if nx.is_directed_acyclic_graph(nx.DiGraph(list(model.edges()) + [(X, Y)])):
                 operation = ('+', (X, Y))
                 if operation not in tabu_list:
-                    old_parents = model.get_parents(Y)
+                    old_parents = list(model.get_parents(Y))
                     new_parents = old_parents + [X]
                     if max_indegree is None or len(new_parents) <= max_indegree:
                         score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
@@ -79,29 +82,30 @@ class HillClimbSearch(StructureEstimator):
         for (X, Y) in model.edges():  # (2) remove single edge
             operation = ('-', (X, Y))
             if operation not in tabu_list:
-                old_parents = model.get_parents(Y)
+                old_parents = list(model.get_parents(Y))
                 new_parents = old_parents[:]
                 new_parents.remove(X)
                 score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
                 yield (operation, score_delta)
 
         for (X, Y) in model.edges():  # (3) flip single edge
-            new_edges = model.edges() + [(Y, X)]
-            new_edges.remove((X, Y))
-            if nx.is_directed_acyclic_graph(nx.DiGraph(new_edges)):
-                operation = ('flip', (X, Y))
-                if operation not in tabu_list and ('flip', (Y, X)) not in tabu_list:
-                    old_X_parents = model.get_parents(X)
-                    old_Y_parents = model.get_parents(Y)
-                    new_X_parents = old_X_parents + [Y]
-                    new_Y_parents = old_Y_parents[:]
-                    new_Y_parents.remove(X)
-                    if max_indegree is None or len(new_X_parents) <= max_indegree:
-                        score_delta = (local_score(X, new_X_parents) +
-                                       local_score(Y, new_Y_parents) -
-                                       local_score(X, old_X_parents) -
-                                       local_score(Y, old_Y_parents))
-                        yield (operation, score_delta)
+            if (Y, X) not in prohibited_inbound_edges and (Y, X) not in prohibited_outbound_edges:
+                new_edges = list(model.edges()) + [(Y, X)]
+                new_edges.remove((X, Y))
+                if nx.is_directed_acyclic_graph(nx.DiGraph(new_edges)):
+                    operation = ('flip', (X, Y))
+                    if operation not in tabu_list and ('flip', (Y, X)) not in tabu_list:
+                        old_X_parents = list(model.get_parents(X))
+                        old_Y_parents = list(model.get_parents(Y))
+                        new_X_parents = old_X_parents + [Y]
+                        new_Y_parents = old_Y_parents[:]
+                        new_Y_parents.remove(X)
+                        if max_indegree is None or len(new_X_parents) <= max_indegree:
+                            score_delta = (local_score(X, new_X_parents) +
+                                           local_score(Y, new_Y_parents) -
+                                           local_score(X, old_X_parents) -
+                                           local_score(Y, old_Y_parents))
+                            yield (operation, score_delta)
 
     def estimate(self, start=None, tabu_length=0, max_indegree=None):
         """
