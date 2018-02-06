@@ -57,6 +57,8 @@ class HillClimbSearch(StructureEstimator):
         prohibited_outbound_edges = set()
         for node in self.inbound_nodes:
             prohibited_outbound_edges.update([(node, X) for X in nodes])
+        # for inbound nodes, not all edges need to be inbound
+        prohibited_outbound_edges = set()
 
         # outbound nodes: inbound edges of prohibited
         prohibited_inbound_edges = set()
