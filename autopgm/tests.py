@@ -1,4 +1,4 @@
-from test_data_generator import *
+from generator import *
 from parser import *
 from estimator import *
 from pgmpy.inference import VariableElimination
