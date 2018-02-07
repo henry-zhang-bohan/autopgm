@@ -48,6 +48,7 @@ class MultipleBayesianEstimator(object):
 
             # single parsers
             current_models = []
+            current_data_volumes = []
             total_score = 0.
             for i in range(len(multiple_file_parser.single_file_parsers)):
                 parser = multiple_file_parser.single_file_parsers[i]
@@ -57,10 +58,11 @@ class MultipleBayesianEstimator(object):
                 current_model = estimator.fit()
                 total_score += K2Score(parser.data_frame).score(current_model)
                 current_models.append(current_model)
+                current_data_volumes.append(parser.data_frame.shape[0])
 
             if total_score > self.max_score:
                 try:
-                    self.merged_model = BayesianMerger(current_models).merge()
+                    self.merged_model = BayesianMerger(current_models, current_data_volumes).merge()
                     self.max_score = max(total_score, self.max_score)
                 except ValueError:
                     continue
