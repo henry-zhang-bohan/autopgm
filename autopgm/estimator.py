@@ -18,6 +18,10 @@ class SingleBayesianEstimator(object):
         self.model = self.hill_climb_search.estimate(tabu_length=3)
         return self.model.edges
 
+    def random_restart(self):
+        self.model = self.hill_climb_search.random_restart(tabu_length=3)
+        return self.model.edges
+
     def fit(self):
         self.model.fit(self.single_file_parser.data_frame)
         return self.model
@@ -48,7 +52,8 @@ class MultipleBayesianEstimator(object):
             for i in range(len(multiple_file_parser.single_file_parsers)):
                 parser = multiple_file_parser.single_file_parsers[i]
                 estimator = SingleBayesianEstimator(parser, inbound_nodes[i], outbound_nodes[i])
-                estimator.initial_edge_estimate()
+                #estimator.initial_edge_estimate()
+                estimator.random_restart()
                 current_model = estimator.fit()
                 total_score += K2Score(parser.data_frame).score(current_model)
                 current_models.append(current_model)

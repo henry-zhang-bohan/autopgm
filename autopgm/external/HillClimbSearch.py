@@ -1,11 +1,14 @@
 from itertools import permutations
 import networkx as nx
-from pgmpy.estimators import StructureEstimator, K2Score
+from pgmpy.estimators import StructureEstimator
+from external.K2Score import K2Score
 from pgmpy.models import BayesianModel
+import random
 
 
 class HillClimbSearch(StructureEstimator):
-    def __init__(self, data, scoring_method=None, inbound_nodes=[], outbound_nodes=[], **kwargs):
+    def __init__(self, data, scoring_method=None, inbound_nodes=[], outbound_nodes=[],
+                 n_random_restarts=10, random_restart_length=5, **kwargs):
         """
         Class for heuristic hill climb searches for BayesianModels, to learn
         network structure from data. `estimate` attempts to find a model with optimal score.
@@ -39,6 +42,8 @@ class HillClimbSearch(StructureEstimator):
 
         self.inbound_nodes = inbound_nodes
         self.outbound_nodes = outbound_nodes
+        self.n_random_restarts = n_random_restarts
+        self.random_restart_length = random_restart_length
 
         super(HillClimbSearch, self).__init__(data, **kwargs)
 
@@ -187,3 +192,54 @@ class HillClimbSearch(StructureEstimator):
                 tabu_list = ([best_operation] + tabu_list)[:tabu_length]
 
         return current_model
+
+    def random_restart(self, start=None, tabu_length=0, max_indegree=None):
+        # starting best model
+        if not start:
+            best_model = self.estimate(tabu_length=tabu_length, max_indegree=max_indegree)
+        else:
+            best_model = start
+        best_score = K2Score(self.data).score(best_model)
+
+        # iterate random restarts
+        for i in range(self.n_random_restarts):
+            current_model = best_model.copy()
+            n_moves = self.calculate_random_restart_length(i)
+            tabu_list = []
+
+            # perform random actions
+            for j in range(n_moves):
+                operations = []
+                for operation, score_delta in self._legal_operations(current_model, tabu_list, max_indegree):
+                    operations.append(operation)
+                try:
+                    operation = random.choice(operations)
+                except IndexError:
+                    continue
+
+                # perform operation
+                if operation[0] == '+':
+                    current_model.add_edge(*operation[1])
+                    tabu_list = ([('-', operation[1])] + tabu_list)[:tabu_length]
+                elif operation[0] == '-':
+                    current_model.remove_edge(*operation[1])
+                    tabu_list = ([('+', operation[1])] + tabu_list)[:tabu_length]
+                elif operation[0] == 'flip':
+                    X, Y = operation[1]
+                    current_model.remove_edge(X, Y)
+                    current_model.add_edge(Y, X)
+                    tabu_list = ([operation] + tabu_list)[:tabu_length]
+
+            # hill climb
+            current_model = self.estimate(start=current_model, tabu_length=tabu_length, max_indegree=max_indegree)
+            current_score = K2Score(self.data).score(current_model)
+
+            # compare with the best model
+            if current_score > best_score:
+                best_model = current_model
+                best_score = current_score
+
+        return best_model.copy()
+
+    def calculate_random_restart_length(self, i):
+        return int(self.random_restart_length + i)
