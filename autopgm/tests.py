@@ -45,15 +45,12 @@ if PARSER:
         DATA_DIR + 'student1.csv',
         DATA_DIR + 'student2.csv'
     ]
-    known_edges = [('I', 'G')]
-    query_targets = ['L', 'P']
-    query_evidence = ['I', 'D']
-    mfp = MultipleFileParser(file_names, known_edges, query_targets, query_evidence)
+    mfp = MultipleFileParser(file_names)
 
 # hill climb search
 HILL_CLIMB_SEARCH = True
 if HILL_CLIMB_SEARCH:
-    mbe = MultipleBayesianEstimator(mfp)
+    mbe = MultipleBayesianEstimator(mfp, n_random_restarts=0, random_restart_length=0, start=None)
     sm = mbe.merged_model
 
     # edges

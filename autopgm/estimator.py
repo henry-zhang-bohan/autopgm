@@ -5,21 +5,18 @@ from math import inf
 
 
 class SingleBayesianEstimator(object):
-    def __init__(self, single_file_parser, inbound_nodes, outbound_nodes):
+    def __init__(self, single_file_parser, inbound_nodes, outbound_nodes,
+                 n_random_restarts=10, random_restart_length=5):
         self.single_file_parser = single_file_parser
-        self.inbound_nodes = inbound_nodes
-        self.outbound_nodes = outbound_nodes
         self.model = None
         self.hill_climb_search = HillClimbSearch(self.single_file_parser.data_frame,
                                                  inbound_nodes=inbound_nodes,
-                                                 outbound_nodes=outbound_nodes)
+                                                 outbound_nodes=outbound_nodes,
+                                                 n_random_restarts=n_random_restarts,
+                                                 random_restart_length=random_restart_length)
 
-    def initial_edge_estimate(self):
-        self.model = self.hill_climb_search.estimate(tabu_length=3)
-        return self.model.edges
-
-    def random_restart(self):
-        self.model = self.hill_climb_search.random_restart(tabu_length=3)
+    def random_restart(self, start=None):
+        self.model = self.hill_climb_search.random_restart(tabu_length=3, start=start)
         return self.model.edges
 
     def fit(self):
@@ -28,7 +25,7 @@ class SingleBayesianEstimator(object):
 
 
 class MultipleBayesianEstimator(object):
-    def __init__(self, multiple_file_parser):
+    def __init__(self, multiple_file_parser, n_random_restarts=10, random_restart_length=5, start=None):
         self.orientations = multiple_file_parser.orientations
         self.merged_model = None
         self.max_score = -inf
@@ -52,9 +49,10 @@ class MultipleBayesianEstimator(object):
             total_score = 0.
             for i in range(len(multiple_file_parser.single_file_parsers)):
                 parser = multiple_file_parser.single_file_parsers[i]
-                estimator = SingleBayesianEstimator(parser, inbound_nodes[i], outbound_nodes[i])
-                #estimator.initial_edge_estimate()
-                estimator.random_restart()
+                estimator = SingleBayesianEstimator(parser, inbound_nodes[i], outbound_nodes[i],
+                                                    n_random_restarts=n_random_restarts,
+                                                    random_restart_length=random_restart_length)
+                estimator.random_restart(start=start)
                 current_model = estimator.fit()
                 total_score += K2Score(parser.data_frame).score(current_model)
                 current_models.append(current_model)

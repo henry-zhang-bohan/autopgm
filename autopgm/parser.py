@@ -19,13 +19,8 @@ class SingleFileParser(object):
 
 
 class MultipleFileParser(object):
-    def __init__(self, file_names, known_edges, query_targets, query_evidence):
+    def __init__(self, file_names):
         self.file_names = file_names
-        self.known_edges = known_edges
-        self.query_targets = query_targets
-        self.query_evidence = query_evidence
-        self.relevant_variables = query_targets + query_evidence
-
         self.shared_variable_dict = {}
         self.shared_dict = {}
         self.orientation_candidates = {}
