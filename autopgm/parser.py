@@ -19,12 +19,14 @@ class SingleFileParser(object):
 
 
 class MultipleFileParser(object):
-    def __init__(self, file_names):
+    def __init__(self, file_names, query_targets=[], query_evidence=[]):
         self.file_names = file_names
         self.shared_variable_dict = {}
         self.shared_dict = {}
         self.orientation_candidates = {}
         self.orientations = []
+        self.query_targets = query_targets
+        self.query_evidence = query_evidence
 
         # parse all files
         self.single_file_parsers = list(map(lambda x: SingleFileParser(x), self.file_names))
@@ -48,6 +50,12 @@ class MultipleFileParser(object):
                 temp_variables.add(variable)
             else:
                 self.shared_variables.add(variable)
+
+        # filter relevant variables
+        if len(self.query_targets) > 0 and len(self.query_evidence) > 0:
+            self.relevant_variables = list(self.shared_variables) + self.query_targets + self.query_evidence
+            for file_parser in self.single_file_parsers:
+                file_parser.filter(self.relevant_variables)
 
         # populate shared variables
         for file_parser in self.single_file_parsers:

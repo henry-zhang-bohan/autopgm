@@ -4,6 +4,7 @@ import random
 from pgmpy.models import BayesianModel
 from pgmpy.factors.discrete import TabularCPD
 from pgmpy.estimators import MaximumLikelihoodEstimator
+from external.HillClimbSearch import *
 
 
 class Node(object):
@@ -114,11 +115,11 @@ class CSVWriter(object):
 
 
 class ModelVerifier(object):
-    def __init__(self, file_name, edges):
+    def __init__(self, file_name, edges=None):
         self.file_name = file_name
+        self.data_frame = pandas.read_csv(file_name)
         self.edges = edges
         self.model = BayesianModel(edges)
-        self.data_frame = pandas.read_csv(file_name)
         self.model.fit(self.data_frame, estimator=MaximumLikelihoodEstimator)
 
     def get_cpds(self):

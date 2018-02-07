@@ -30,6 +30,10 @@ class MultipleBayesianEstimator(object):
         self.merged_model = None
         self.max_score = -inf
 
+        # single file case
+        if len(self.orientations) == 0:
+            self.orientations = [{}]
+
         for orientation in self.orientations:
             inbound_nodes = []
             outbound_nodes = []
@@ -64,3 +68,11 @@ class MultipleBayesianEstimator(object):
                     self.max_score = max(total_score, self.max_score)
                 except ValueError:
                     continue
+
+    def print_edges(self):
+        print(self.merged_model.edges)
+
+    def print_cpds(self):
+        for cpd in self.merged_model.get_cpds():
+            print("CPD of {variable}:".format(variable=cpd.variable))
+            print(cpd)

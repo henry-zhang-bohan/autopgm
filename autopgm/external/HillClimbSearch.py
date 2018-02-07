@@ -4,6 +4,7 @@ from pgmpy.estimators import StructureEstimator
 from external.K2Score import K2Score
 from pgmpy.models import BayesianModel
 import random
+import time
 
 
 class HillClimbSearch(StructureEstimator):
@@ -114,7 +115,67 @@ class HillClimbSearch(StructureEstimator):
                                            local_score(Y, old_Y_parents))
                             yield (operation, score_delta)
 
-    def estimate(self, start=None, tabu_length=0, max_indegree=None):
+    def _legal_operations_without_score(self, model, tabu_list=[], max_indegree=None):
+        """Generates a list of legal (= not in tabu_list) graph modifications
+        for a given model, together with their score changes. Possible graph modifications:
+        (1) add, (2) remove, or (3) flip a single edge. For details on scoring
+        see Koller & Fridman, Probabilistic Graphical Models, Section 18.4.3.3 (page 818).
+        If a number `max_indegree` is provided, only modifications that keep the number
+        of parents for each node below `max_indegree` are considered."""
+
+        nodes = self.state_names.keys()
+
+        # inbound nodes: outbound edges of prohibited
+        prohibited_outbound_edges = set()
+        for node in self.inbound_nodes:
+            prohibited_outbound_edges.update([(node, X) for X in nodes])
+        # for inbound nodes, not all edges need to be inbound
+        prohibited_outbound_edges = set()
+
+        # outbound nodes: inbound edges of prohibited
+        prohibited_inbound_edges = set()
+        for node in self.outbound_nodes:
+            prohibited_inbound_edges.update([(X, node) for X in nodes])
+
+        potential_new_edges = (set(permutations(nodes, 2)) -
+                               set(model.edges()) -
+                               set([(Y, X) for (X, Y) in model.edges()]) -
+                               prohibited_outbound_edges -
+                               prohibited_inbound_edges)
+
+        for (X, Y) in potential_new_edges:  # (1) add single edge
+            if nx.is_directed_acyclic_graph(nx.DiGraph(list(model.edges()) + [(X, Y)])):
+                operation = ('+', (X, Y))
+                if operation not in tabu_list:
+                    old_parents = list(model.get_parents(Y))
+                    new_parents = old_parents + [X]
+                    if max_indegree is None or len(new_parents) <= max_indegree:
+                        yield operation
+
+        for (X, Y) in model.edges():  # (2) remove single edge
+            operation = ('-', (X, Y))
+            if operation not in tabu_list:
+                old_parents = list(model.get_parents(Y))
+                new_parents = old_parents[:]
+                new_parents.remove(X)
+                yield operation
+
+        for (X, Y) in model.edges():  # (3) flip single edge
+            if (Y, X) not in prohibited_inbound_edges and (Y, X) not in prohibited_outbound_edges:
+                new_edges = list(model.edges()) + [(Y, X)]
+                new_edges.remove((X, Y))
+                if nx.is_directed_acyclic_graph(nx.DiGraph(new_edges)):
+                    operation = ('flip', (X, Y))
+                    if operation not in tabu_list and ('flip', (Y, X)) not in tabu_list:
+                        old_X_parents = list(model.get_parents(X))
+                        old_Y_parents = list(model.get_parents(Y))
+                        new_X_parents = old_X_parents + [Y]
+                        new_Y_parents = old_Y_parents[:]
+                        new_Y_parents.remove(X)
+                        if max_indegree is None or len(new_X_parents) <= max_indegree:
+                            yield operation
+
+    def estimate(self, start=None, tabu_list=[], tabu_length=0, max_indegree=None):
         """
         Performs local hill climb search to estimates the `BayesianModel` structure
         that has optimal score, according to the scoring method supplied in the constructor.
@@ -125,6 +186,7 @@ class HillClimbSearch(StructureEstimator):
         ----------
         start: BayesianModel instance
             The starting point for the local search. By default a completely disconnected network is used.
+        tabu_list: list[operations]
         tabu_length: int
             If provided, the last `tabu_length` graph modifications cannot be reversed
             during the search procedure. This serves to enforce a wider exploration
@@ -165,7 +227,6 @@ class HillClimbSearch(StructureEstimator):
         elif not isinstance(start, BayesianModel) or not set(start.nodes()) == set(nodes):
             raise ValueError("'start' should be a BayesianModel with the same variables as the data set, or 'None'.")
 
-        tabu_list = []
         current_model = start
 
         while True:
@@ -176,6 +237,9 @@ class HillClimbSearch(StructureEstimator):
                 if score_delta > best_score_delta:
                     best_operation = operation
                     best_score_delta = score_delta
+
+            print(best_operation)
+            print(best_score_delta)
 
             if best_operation is None or best_score_delta < epsilon:
                 break
@@ -210,8 +274,9 @@ class HillClimbSearch(StructureEstimator):
             # perform random actions
             for j in range(n_moves):
                 operations = []
-                for operation, score_delta in self._legal_operations(current_model, tabu_list, max_indegree):
+                for operation in self._legal_operations_without_score(current_model, tabu_list, max_indegree):
                     operations.append(operation)
+
                 try:
                     operation = random.choice(operations)
                 except IndexError:
@@ -231,7 +296,9 @@ class HillClimbSearch(StructureEstimator):
                     tabu_list = ([operation] + tabu_list)[:tabu_length]
 
             # hill climb
-            current_model = self.estimate(start=current_model, tabu_length=tabu_length, max_indegree=max_indegree)
+            print('----- hill climbing -----')
+            current_model = self.estimate(start=current_model, tabu_list=tabu_list,
+                                          tabu_length=tabu_length, max_indegree=max_indegree)
             current_score = K2Score(self.data).score(current_model)
 
             # compare with the best model

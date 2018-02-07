@@ -6,7 +6,7 @@ from pgmpy.inference import VariableElimination
 DATA_DIR = 'data/'
 
 # test_data_generator
-TEST_DATA_GENERATOR_MODEL = True
+TEST_DATA_GENERATOR_MODEL = False
 if TEST_DATA_GENERATOR_MODEL:
     sm1 = StudentModel1().model
     sm2 = StudentModel2().model
@@ -25,8 +25,8 @@ if TEST_DATA_GENERATOR_VERIFY:
     mv1.print_cpds()
 
     print('---------- STUDENT MODEL 2 CPDS ----------')
-    mv1 = ModelVerifier(DATA_DIR + 'student2.csv', sm2.edges)
-    mv1.print_cpds()
+    mv2 = ModelVerifier(DATA_DIR + 'student2.csv', sm2.edges)
+    mv2.print_cpds()
 
 # merger
 MERGER = False
@@ -39,7 +39,7 @@ if MERGER:
         print('Model not valid.')
 
 # parser
-PARSER = True
+PARSER = False
 if PARSER:
     file_names = [
         DATA_DIR + 'student1.csv',
@@ -48,7 +48,7 @@ if PARSER:
     mfp = MultipleFileParser(file_names)
 
 # hill climb search
-HILL_CLIMB_SEARCH = True
+HILL_CLIMB_SEARCH = False
 if HILL_CLIMB_SEARCH:
     mbe = MultipleBayesianEstimator(mfp, n_random_restarts=0, random_restart_length=0, start=None)
     sm = mbe.merged_model
@@ -79,3 +79,13 @@ if HILL_CLIMB_SEARCH:
     print(inference.query(['P'], evidence={'L': 0})['P'])
     print('----- Letter: 1 -----')
     print(inference.query(['P'], evidence={'L': 1})['P'])
+
+# jobs.csv experiment
+JOBS_EXP = True
+if JOBS_EXP:
+    print('---------- JOBS EXP CPDS ----------')
+    mfp_jobs = MultipleFileParser([DATA_DIR + 'jobs.csv'], query_targets=['income', 'attend'],
+                                  query_evidence=['age', 'racethn', 'marital', 'parent'])
+    mbe = MultipleBayesianEstimator(mfp_jobs, n_random_restarts=5, random_restart_length=1)
+    mbe.print_edges()
+    mbe.print_cpds()
