@@ -29,7 +29,7 @@ if TEST_DATA_GENERATOR_VERIFY:
     mv1.print_cpds()
 
 # merger
-MERGER = True
+MERGER = False
 if MERGER:
     sm = BayesianMerger([sm1, sm2], [10000, 20000]).merge()
     if sm:
@@ -39,7 +39,7 @@ if MERGER:
         print('Model not valid.')
 
 # parser
-PARSER = False
+PARSER = True
 if PARSER:
     file_names = [
         DATA_DIR + 'student1.csv',
@@ -51,7 +51,7 @@ if PARSER:
     mfp = MultipleFileParser(file_names, known_edges, query_targets, query_evidence)
 
 # hill climb search
-HILL_CLIMB_SEARCH = False
+HILL_CLIMB_SEARCH = True
 if HILL_CLIMB_SEARCH:
     mbe = MultipleBayesianEstimator(mfp)
     sm = mbe.merged_model

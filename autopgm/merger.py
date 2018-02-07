@@ -22,7 +22,6 @@ class BayesianMerger(object):
                 if cpd.variable not in self.cpds.keys():
                     self.cpds[cpd.variable] = (cpd, volume)
                 else:
-                    # TODO: this is temporary; we should consider how to approach this problem
                     if len(cpd.variables) > len(self.cpds[cpd.variable][0].variables):
                         self.cpds[cpd.variable] = (cpd, volume)
                     elif len(cpd.variables) == len(self.cpds[cpd.variable][0].variables) and len(cpd.variables) == 1:
