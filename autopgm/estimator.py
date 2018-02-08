@@ -2,16 +2,18 @@ from external.HillClimbSearch import HillClimbSearch
 from external.K2Score import K2Score
 from merger import BayesianMerger
 from math import inf
+from parser import *
 
 
 class SingleBayesianEstimator(object):
-    def __init__(self, single_file_parser, inbound_nodes, outbound_nodes,
+    def __init__(self, single_file_parser, inbound_nodes, outbound_nodes, known_independencies=[],
                  n_random_restarts=10, random_restart_length=5):
         self.single_file_parser = single_file_parser
         self.model = None
         self.hill_climb_search = HillClimbSearch(self.single_file_parser.data_frame,
                                                  inbound_nodes=inbound_nodes,
                                                  outbound_nodes=outbound_nodes,
+                                                 known_independencies=known_independencies,
                                                  n_random_restarts=n_random_restarts,
                                                  random_restart_length=random_restart_length)
 
@@ -25,8 +27,15 @@ class SingleBayesianEstimator(object):
 
 
 class MultipleBayesianEstimator(object):
-    def __init__(self, multiple_file_parser, n_random_restarts=10, random_restart_length=5, start=None):
-        self.orientations = multiple_file_parser.orientations
+    def __init__(self, file_names, query_targets=[], query_evidence=[], inbound_nodes=[], outbound_nodes=[],
+                 known_independencies=[], n_random_restarts=10, random_restart_length=5, start=None):
+        self.multiple_file_parser = MultipleFileParser(file_names, query_targets=query_targets,
+                                                       query_evidence=query_evidence)
+        self.inbound_nodes = inbound_nodes
+        self.outbound_nodes = outbound_nodes
+        self.known_independencies = known_independencies
+
+        self.orientations = self.multiple_file_parser.orientations
         self.merged_model = None
         self.max_score = -inf
 
@@ -37,23 +46,22 @@ class MultipleBayesianEstimator(object):
         for orientation in self.orientations:
             inbound_nodes = []
             outbound_nodes = []
-            for i in range(len(multiple_file_parser.single_file_parsers)):
-                inbound_nodes.append([])
-                outbound_nodes.append([])
+            for i in range(len(self.multiple_file_parser.single_file_parsers)):
+                inbound_nodes.append(self.inbound_nodes[:])
+                outbound_nodes.append(self.outbound_nodes[:])
             for variable in orientation.keys():
                 for position in orientation[variable].keys():
                     if orientation[variable][position] == 0:
                         outbound_nodes[position].append(variable)
-                    else:
-                        inbound_nodes[position].append(variable)
 
             # single parsers
             current_models = []
             current_data_volumes = []
             total_score = 0.
-            for i in range(len(multiple_file_parser.single_file_parsers)):
-                parser = multiple_file_parser.single_file_parsers[i]
+            for i in range(len(self.multiple_file_parser.single_file_parsers)):
+                parser = self.multiple_file_parser.single_file_parsers[i]
                 estimator = SingleBayesianEstimator(parser, inbound_nodes[i], outbound_nodes[i],
+                                                    known_independencies=self.known_independencies[:],
                                                     n_random_restarts=n_random_restarts,
                                                     random_restart_length=random_restart_length)
                 estimator.random_restart(start=start)
@@ -63,11 +71,8 @@ class MultipleBayesianEstimator(object):
                 current_data_volumes.append(parser.data_frame.shape[0])
 
             if total_score > self.max_score:
-                try:
-                    self.merged_model = BayesianMerger(current_models, current_data_volumes).merge()
-                    self.max_score = max(total_score, self.max_score)
-                except ValueError:
-                    continue
+                self.merged_model = BayesianMerger(current_models, current_data_volumes).merge()
+                self.max_score = max(total_score, self.max_score)
 
     def print_edges(self):
         print(self.merged_model.edges)

@@ -38,7 +38,11 @@ class BayesianMerger(object):
         # new model
         self.model = BayesianModel(self.edges)
         for cpd, volume in self.cpds.values():
-            self.model.add_cpds(cpd)
+            try:
+                self.model.add_cpds(cpd)
+            except ValueError:
+                self.model.add_node(cpd.variable)
+                self.model.add_cpds(cpd)
 
         if self.model.check_model():
             return self.model

@@ -1,5 +1,4 @@
 from generator import *
-from parser import *
 from estimator import *
 from pgmpy.inference import VariableElimination
 
@@ -38,19 +37,14 @@ if MERGER:
     else:
         print('Model not valid.')
 
-# parser
-PARSER = False
-if PARSER:
+# hill climb search
+HILL_CLIMB_SEARCH = False
+if HILL_CLIMB_SEARCH:
     file_names = [
         DATA_DIR + 'student1.csv',
         DATA_DIR + 'student2.csv'
     ]
-    mfp = MultipleFileParser(file_names)
-
-# hill climb search
-HILL_CLIMB_SEARCH = False
-if HILL_CLIMB_SEARCH:
-    mbe = MultipleBayesianEstimator(mfp, n_random_restarts=0, random_restart_length=0, start=None)
+    mbe = MultipleBayesianEstimator(file_names, n_random_restarts=0, random_restart_length=0, start=None)
     sm = mbe.merged_model
 
     # edges
@@ -84,8 +78,13 @@ if HILL_CLIMB_SEARCH:
 JOBS_EXP = True
 if JOBS_EXP:
     print('---------- JOBS EXP CPDS ----------')
-    mfp_jobs = MultipleFileParser([DATA_DIR + 'jobs.csv'], query_targets=['income', 'attend'],
-                                  query_evidence=['age', 'racethn', 'marital', 'parent'])
-    mbe = MultipleBayesianEstimator(mfp_jobs, n_random_restarts=5, random_restart_length=1)
+    mbe = MultipleBayesianEstimator([DATA_DIR + 'jobs.csv'], query_targets=['income'],
+                                    query_evidence=['age', 'racethn', 'marital', 'parent', 'sex', 'relig', 'attend'],
+                                    outbound_nodes=['age', 'racethn', 'sex'],
+                                    known_independencies=[('marital', 'attend')],
+                                    n_random_restarts=0, random_restart_length=0)
     mbe.print_edges()
     mbe.print_cpds()
+
+    # [('age', 'marital'), ('age', 'parent'), ('marital', 'income'), ('relig', 'attend'),
+    # ('racethn', 'relig'), ('racethn', 'income')]

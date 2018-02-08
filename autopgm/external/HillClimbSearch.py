@@ -8,7 +8,7 @@ import time
 
 
 class HillClimbSearch(StructureEstimator):
-    def __init__(self, data, scoring_method=None, inbound_nodes=[], outbound_nodes=[],
+    def __init__(self, data, scoring_method=None, inbound_nodes=[], outbound_nodes=[], known_independencies=[],
                  n_random_restarts=10, random_restart_length=5, **kwargs):
         """
         Class for heuristic hill climb searches for BayesianModels, to learn
@@ -43,6 +43,7 @@ class HillClimbSearch(StructureEstimator):
 
         self.inbound_nodes = inbound_nodes
         self.outbound_nodes = outbound_nodes
+        self.known_independencies = known_independencies
         self.n_random_restarts = n_random_restarts
         self.random_restart_length = random_restart_length
 
@@ -74,6 +75,7 @@ class HillClimbSearch(StructureEstimator):
         potential_new_edges = (set(permutations(nodes, 2)) -
                                set(model.edges()) -
                                set([(Y, X) for (X, Y) in model.edges()]) -
+                               set(self.known_independencies) -
                                prohibited_outbound_edges -
                                prohibited_inbound_edges)
 
@@ -140,6 +142,7 @@ class HillClimbSearch(StructureEstimator):
         potential_new_edges = (set(permutations(nodes, 2)) -
                                set(model.edges()) -
                                set([(Y, X) for (X, Y) in model.edges()]) -
+                               set(self.known_independencies) -
                                prohibited_outbound_edges -
                                prohibited_inbound_edges)
 
