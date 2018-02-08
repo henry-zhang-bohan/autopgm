@@ -13,6 +13,7 @@ setup(name='autopgm',
           'numpy >= 1.14.0',
           'pandas = 0.20.3',
           'networkx = 2.1',
+          'matplotlib >= 2.0.2',
           'pgmpy'
       ],
       classifiers=[
