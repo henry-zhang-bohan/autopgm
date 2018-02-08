@@ -84,3 +84,19 @@ class MultipleBayesianEstimator(object):
         for cpd in self.merged_model.get_cpds():
             print("CPD of {variable}:".format(variable=cpd.variable))
             print(cpd)
+
+    def plot_edges(self):
+        import matplotlib.pyplot as plt
+        import networkx as nx
+
+        edges = [(X[:2].capitalize(), Y[:2].capitalize()) for (X, Y) in self.merged_model.edges]
+
+        G = nx.DiGraph()
+        G.add_edges_from(edges)
+        pos = nx.shell_layout(G)
+
+        nx.draw_networkx_nodes(G, pos, node_size=750)
+        nx.draw_networkx_labels(G, pos)
+        nx.draw_networkx_edges(G, pos, arrows=True, arrowsize=20)
+
+        plt.show()

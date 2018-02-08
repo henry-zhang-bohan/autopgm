@@ -77,14 +77,26 @@ if HILL_CLIMB_SEARCH:
 # jobs.csv experiment
 JOBS_EXP = True
 if JOBS_EXP:
-    print('---------- JOBS EXP CPDS ----------')
-    mbe = MultipleBayesianEstimator([DATA_DIR + 'jobs.csv'], query_targets=['income'],
-                                    query_evidence=['age', 'racethn', 'marital', 'parent', 'sex', 'relig', 'attend'],
-                                    outbound_nodes=['age', 'racethn', 'sex'],
-                                    known_independencies=[('marital', 'attend')],
-                                    n_random_restarts=0, random_restart_length=0)
+    import pickle
+    JOBS_EXP_TRAIN = True
+    if JOBS_EXP_TRAIN:
+        print('---------- JOBS EXP CPDS ----------')
+        mbe = MultipleBayesianEstimator([DATA_DIR + 'jobs.csv'], query_targets=['income', 'happy'],
+                                        query_evidence=['age', 'racethn', 'marital', 'parent', 'sex', 'relig', 'attend',
+                                                        'family', 'financial', 'party', 'ideo', 'state', 'ownrent'],
+                                        outbound_nodes=['age', 'racethn', 'sex'],
+                                        known_independencies=[('marital', 'attend')],
+                                        n_random_restarts=5, random_restart_length=0)
+        pickle.dump(mbe, open(DATA_DIR + 'jobs_exp.p', 'wb'))
+
+    mbe = pickle.load(open(DATA_DIR + 'jobs_exp.p', 'rb'))
     mbe.print_edges()
     mbe.print_cpds()
+    mbe.plot_edges()
 
-    # [('age', 'marital'), ('age', 'parent'), ('marital', 'income'), ('relig', 'attend'),
-    # ('racethn', 'relig'), ('racethn', 'income')]
+    # [('age', 'ownrent'), ('age', 'parent'), ('ownrent', 'marital'), ('ownrent', 'income'), ('marital', 'income'),
+    # ('income', 'financial'), ('family', 'happy'), ('sex', 'marital'), ('relig', 'attend'), ('relig', 'ideo'),
+    # ('relig', 'party'), ('racethn', 'relig'), ('racethn', 'state'), ('racethn', 'party'), ('financial', 'family'),
+    # ('financial', 'happy'), ('party', 'ideo'), ('parent', 'marital')]
+
+
