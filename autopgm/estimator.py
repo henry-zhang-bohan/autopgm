@@ -74,6 +74,9 @@ class MultipleBayesianEstimator(object):
                 self.merged_model = BayesianMerger(current_models, current_data_volumes).merge()
                 self.max_score = max(total_score, self.max_score)
 
+    def get_model(self):
+        return self.merged_model
+
     def print_edges(self):
         print(self.merged_model.edges)
 
