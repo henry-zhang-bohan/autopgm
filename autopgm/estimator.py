@@ -71,8 +71,11 @@ class MultipleBayesianEstimator(object):
                 current_data_volumes.append(parser.data_frame.shape[0])
 
             if total_score > self.max_score:
-                self.merged_model = BayesianMerger(current_models, current_data_volumes).merge()
-                self.max_score = max(total_score, self.max_score)
+                try:
+                    self.merged_model = BayesianMerger(current_models, current_data_volumes).merge()
+                    self.max_score = max(total_score, self.max_score)
+                except ValueError:
+                    continue
 
     def get_model(self):
         return self.merged_model
