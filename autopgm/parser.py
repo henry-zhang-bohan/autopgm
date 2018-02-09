@@ -9,7 +9,7 @@ class SingleFileParser(object):
         self.shared_variables = set()
 
     def filter(self, variables):
-        variables = list(filter(lambda x: x in self.variables, variables))
+        variables = list(set(filter(lambda x: x in self.variables, variables)))
         self.data_frame = self.data_frame[variables]
         self.variables = self.data_frame.columns.values.tolist()
         return self.data_frame

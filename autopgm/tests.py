@@ -75,18 +75,19 @@ if HILL_CLIMB_SEARCH:
     print(inference.query(['P'], evidence={'L': 1})['P'])
 
 # jobs.csv experiment
-JOBS_EXP = True
+JOBS_EXP = False
 if JOBS_EXP:
     import pickle
+
     JOBS_EXP_TRAIN = True
     if JOBS_EXP_TRAIN:
         print('---------- JOBS EXP CPDS ----------')
-        mbe = MultipleBayesianEstimator([DATA_DIR + 'jobs.csv'], query_targets=['income', 'happy'],
-                                        query_evidence=['age', 'racethn', 'marital', 'parent', 'sex', 'relig', 'attend',
-                                                        'family', 'financial', 'party', 'ideo', 'state', 'ownrent'],
-                                        outbound_nodes=['age', 'racethn', 'sex'],
-                                        known_independencies=[('marital', 'attend')],
-                                        n_random_restarts=5, random_restart_length=0)
+        mbe = MultipleBayesianEstimator([DATA_DIR + 'jobs.csv'],
+                                        query_targets=['happy', 'financial'],
+                                        query_evidence=['em', 'income', 'ownrent'],
+                                        outbound_nodes=['sex'],
+                                        known_independencies=[],
+                                        n_random_restarts=10, random_restart_length=0)
         pickle.dump(mbe, open(DATA_DIR + 'jobs_exp.p', 'wb'))
 
     mbe = pickle.load(open(DATA_DIR + 'jobs_exp.p', 'rb'))
@@ -94,9 +95,98 @@ if JOBS_EXP:
     mbe.print_cpds()
     mbe.plot_edges()
 
-    # [('age', 'ownrent'), ('age', 'parent'), ('ownrent', 'marital'), ('ownrent', 'income'), ('marital', 'income'),
-    # ('income', 'financial'), ('family', 'happy'), ('sex', 'marital'), ('relig', 'attend'), ('relig', 'ideo'),
-    # ('relig', 'party'), ('racethn', 'relig'), ('racethn', 'state'), ('racethn', 'party'), ('financial', 'family'),
-    # ('financial', 'happy'), ('party', 'ideo'), ('parent', 'marital')]
+# edu.csv experiment
+EDU_EXP = False
+if EDU_EXP:
+    import pickle
 
+    EDU_EXP_TRAIN = True
+    if EDU_EXP_TRAIN:
+        print('---------- EDU EXP CPDS ----------')
+        mbe = MultipleBayesianEstimator([DATA_DIR + 'edu.csv'], query_targets=['income', 'happy'],
+                                        query_evidence=['age', 'irace', 'marital', 'sex', 'relig', 'attend',
+                                                        'hh1', 'family', 'financial', 'party', 'ideo', 'state',
+                                                        'ownrent', 'job_sat', 'equality', 'edu', 'eu_edu_use', 'em',
+                                                        'look_4_em'],
+                                        outbound_nodes=['age', 'irace', 'sex'],
+                                        known_independencies=[],
+                                        n_random_restarts=0, random_restart_length=0)
+        pickle.dump(mbe, open(DATA_DIR + 'edu_exp.p', 'wb'))
 
+    mbe = pickle.load(open(DATA_DIR + 'edu_exp.p', 'rb'))
+    mbe.print_edges()
+    mbe.print_cpds()
+    mbe.plot_edges()
+
+# edu.csv experiment
+EDU_EXP2 = True
+if EDU_EXP2:
+    import pickle
+
+    EDU_EXP_TRAIN = False
+    if EDU_EXP_TRAIN:
+        print('---------- EDU EXP CPDS ----------')
+        mbe = MultipleBayesianEstimator([DATA_DIR + 'edu.csv'], query_targets=['income', 'happy'],
+                                        query_evidence=['marital',  'ownrent', 'job_sat', 'em', 'look_4_em'],
+                                        outbound_nodes=['sex'],
+                                        known_independencies=[],
+                                        n_random_restarts=0, random_restart_length=0)
+        pickle.dump(mbe, open(DATA_DIR + 'edu_exp2.p', 'wb'))
+
+    EDU_EXP_SHOW = False
+    if EDU_EXP_SHOW:
+        mbe = pickle.load(open(DATA_DIR + 'edu_exp2.p', 'rb'))
+        mbe.print_edges()
+        mbe.print_cpds()
+        mbe.plot_edges()
+
+    EDU_SUB = False
+    if EDU_SUB:
+        print('---------- EDU EXP SUB 1 ----------')
+        mbe1 = MultipleBayesianEstimator([DATA_DIR + 'edu.csv'], query_targets=['income'],
+                                         query_evidence=['marital', 'sex', 'ownrent', 'em', 'look_4_em'],
+                                         outbound_nodes=['sex'],
+                                         known_independencies=[],
+                                         n_random_restarts=0, random_restart_length=0)
+        pickle.dump(mbe1, open(DATA_DIR + 'edu_exp2_1.p', 'wb'))
+
+        print('---------- EDU EXP SUB 2 ----------')
+        mbe2 = MultipleBayesianEstimator([DATA_DIR + 'edu.csv'], query_targets=['income'],
+                                         query_evidence=['edu', 'eu_edu_use'],
+                                         outbound_nodes=['sex'],
+                                         known_independencies=[],
+                                         n_random_restarts=0, random_restart_length=0)
+        pickle.dump(mbe2, open(DATA_DIR + 'edu_exp2_2.p', 'wb'))
+
+        print('---------- EDU EXP SUB 3 ----------')
+        mbe3 = MultipleBayesianEstimator([DATA_DIR + 'edu.csv'], query_targets=['happy'],
+                                         query_evidence=['em', 'look_4_em', 'job_sat', 'financial', 'family'],
+                                         outbound_nodes=['sex'],
+                                         known_independencies=[],
+                                         n_random_restarts=0, random_restart_length=0)
+        pickle.dump(mbe3, open(DATA_DIR + 'edu_exp2_3.p', 'wb'))
+
+    EDU_SHOW_SUB = False
+    if EDU_SHOW_SUB:
+        mbe1 = pickle.load(open(DATA_DIR + 'edu_exp2_1.p', 'rb'))
+        mbe2 = pickle.load(open(DATA_DIR + 'edu_exp2_2.p', 'rb'))
+        mbe3 = pickle.load(open(DATA_DIR + 'edu_exp2_3.p', 'rb'))
+
+    EDU_EXP_MERGE = True
+    if EDU_EXP_MERGE:
+        print('---------- EDU EXP MERGE CPDS ----------')
+        file_names = [DATA_DIR + 'edu_1.csv', DATA_DIR + 'edu_2.csv']
+        mbe = MultipleBayesianEstimator(file_names, query_targets=['income', 'happy'],
+                                        query_evidence=['irace', 'marital', 'sex', 'relig', 'family', 'financial',
+                                                        'ownrent', 'job_sat', 'edu', 'eu_edu_use', 'em', 'look_4_em'],
+                                        outbound_nodes=['irace', 'sex'],
+                                        known_independencies=[],
+                                        n_random_restarts=0, random_restart_length=0)
+        pickle.dump(mbe, open(DATA_DIR + 'edu_exp2_merged.p', 'wb'))
+
+    EDU_EXP_SHOW = False
+    if EDU_EXP_SHOW:
+        mbe = pickle.load(open(DATA_DIR + 'edu_exp2_merged.p', 'rb'))
+        mbe.print_edges()
+        mbe.print_cpds()
+        mbe.plot_edges()

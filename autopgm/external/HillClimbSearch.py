@@ -4,7 +4,6 @@ from pgmpy.estimators import StructureEstimator
 from external.K2Score import K2Score
 from pgmpy.models import BayesianModel
 import random
-import time
 
 
 class HillClimbSearch(StructureEstimator):
