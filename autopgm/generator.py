@@ -204,3 +204,55 @@ class StudentModel2(object):
 
         student_model_2.add_cpds(difficulty_cpd, intel_cpd, pass_cpd)
         self.model = student_model_2
+
+
+class StudentModel3(object):
+    def __init__(self):
+        student_model_3 = BayesianModel([('D', 'G'), ('I', 'G'), ('G', 'L'), ('I', 'S'),
+                                         ('D', 'P'), ('I', 'P'), ('P', 'L')])
+
+        grade_cpd = TabularCPD(
+            variable='G',
+            variable_card=3,
+            values=[[0.3, 0.05, 0.9, 0.5],
+                    [0.4, 0.25, 0.08, 0.3],
+                    [0.3, 0.7, 0.02, 0.2]],
+            evidence=['I', 'D'],
+            evidence_card=[2, 2])
+
+        difficulty_cpd = TabularCPD(
+            variable='D',
+            variable_card=2,
+            values=[[0.6, 0.4]])
+
+        intel_cpd = TabularCPD(
+            variable='I',
+            variable_card=2,
+            values=[[0.7, 0.3]])
+
+        letter_cpd = TabularCPD(
+            variable='L',
+            variable_card=2,
+            values=[[0.2, 0.5, 0.999, 0.1, 0.4, 0.99],
+                    [0.8, 0.5, 0.001, 0.9, 0.6, 0.01]],
+            evidence=['P', 'G'],
+            evidence_card=[2, 3])
+
+        sat_cpd = TabularCPD(
+            variable='S',
+            variable_card=2,
+            values=[[0.95, 0.2],
+                    [0.05, 0.8]],
+            evidence=['I'],
+            evidence_card=[2])
+
+        pass_cpd = TabularCPD(
+            variable='P',
+            variable_card=2,
+            values=[[0.3, 0.8, 0.1, 0.4],
+                    [0.7, 0.2, 0.9, 0.6]],
+            evidence=['I', 'D'],
+            evidence_card=[2, 2])
+
+        student_model_3.add_cpds(grade_cpd, difficulty_cpd, intel_cpd, letter_cpd, sat_cpd, pass_cpd)
+        self.model = student_model_3
