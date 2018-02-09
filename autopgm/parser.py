@@ -53,7 +53,7 @@ class MultipleFileParser(object):
 
         # filter relevant variables
         if len(self.query_targets) > 0 and len(self.query_evidence) > 0:
-            self.relevant_variables = list(self.shared_variables) + self.query_targets + self.query_evidence
+            self.relevant_variables = list(self.shared_variables) + list(self.query_targets) + list(self.query_evidence)
             for file_parser in self.single_file_parsers:
                 file_parser.filter(self.relevant_variables)
 
