@@ -114,6 +114,14 @@ class CSVWriter(object):
         np.savetxt(self.file_name, self.data, fmt='%i', delimiter=',', header=','.join(self.order), comments='')
 
 
+class CSVSplitter(object):
+    def __init__(self, file_name, table_columns, pre, split_path=''):
+        self.data_frame = pandas.read_csv(file_name)
+        for i in range(len(table_columns)):
+            data_frame = self.data_frame[list(set(table_columns[i]))]
+            data_frame.to_csv(split_path + pre + '_' + str(i + 1) + '.csv')
+
+
 class ModelVerifier(object):
     def __init__(self, file_name, edges=None):
         self.file_name = file_name
