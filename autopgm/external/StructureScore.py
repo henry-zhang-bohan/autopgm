@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-
-from external.base import BaseEstimator
+from autopgm.external.base import BaseEstimator
 
 
 class StructureScore(BaseEstimator):

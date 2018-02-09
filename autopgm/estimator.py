@@ -1,8 +1,8 @@
-from external.HillClimbSearch import HillClimbSearch
-from external.K2Score import K2Score
-from merger import BayesianMerger
+from autopgm.external.HillClimbSearch import HillClimbSearch
+from autopgm.external.K2Score import K2Score
+from autopgm.merger import BayesianMerger
+from autopgm.parser import *
 from math import inf
-from parser import *
 
 
 class SingleBayesianEstimator(object):

@@ -1,10 +1,8 @@
 import numpy as np
 import pandas
-import random
-from pgmpy.models import BayesianModel
 from pgmpy.factors.discrete import TabularCPD
 from pgmpy.estimators import MaximumLikelihoodEstimator
-from external.HillClimbSearch import *
+from autopgm.external.HillClimbSearch import *
 
 
 class Node(object):
@@ -119,7 +117,7 @@ class CSVSplitter(object):
         self.data_frame = pandas.read_csv(file_name)
         for i in range(len(table_columns)):
             data_frame = self.data_frame[list(set(table_columns[i]))]
-            data_frame.to_csv(split_path + pre + '_' + str(i + 1) + '.csv')
+            data_frame.to_csv(split_path + pre + '_' + str(i + 1) + '.csv', index=False)
 
 
 class ModelVerifier(object):

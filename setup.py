@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(name='autopgm',
       version='0.1',
-      description='Automatically learn Bayesian Networks from multiple data sources',
+      description='Automatically learn Bayesian networks from multiple discrete data sources',
       url='https://github.com/ideo-henry/autopgm',
       author='Bohan Zhang',
       author_email='henryhenry.zhang@mail.utoronto.ca',
@@ -11,8 +11,8 @@ setup(name='autopgm',
       install_requires=[
           'scipy >= 0.19.1',
           'numpy >= 1.14.0',
-          'pandas = 0.20.3',
-          'networkx = 2.1',
+          'pandas == 0.20.3',
+          'networkx == 2.1',
           'matplotlib >= 2.0.2',
           'pgmpy'
       ],

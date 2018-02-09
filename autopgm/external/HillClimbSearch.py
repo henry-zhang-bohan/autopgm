@@ -1,7 +1,7 @@
 from itertools import permutations
 import networkx as nx
 from pgmpy.estimators import StructureEstimator
-from external.K2Score import K2Score
+from autopgm.external.K2Score import K2Score
 from pgmpy.models import BayesianModel
 import random
 

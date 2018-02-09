@@ -1,6 +1,4 @@
-#!/usr/bin/env python
 from warnings import warn
-
 import numpy as np
 import pandas as pd
 from scipy.stats import chisquare
