@@ -108,3 +108,6 @@ ENV/
 
 # data folder
 autopgm/data/
+
+# tests.py
+autopgm/tests.py
