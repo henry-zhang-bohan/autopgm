@@ -8,7 +8,7 @@ import multiprocessing as mp
 
 class SingleBayesianEstimator(object):
     def __init__(self, single_file_parser, inbound_nodes, outbound_nodes, known_independencies=[],
-                 n_random_restarts=10, random_restart_length=5):
+                 n_random_restarts=0, random_restart_length=0):
         self.single_file_parser = single_file_parser
         self.model = None
         self.hill_climb_search = HillClimbSearch(self.single_file_parser.data_frame,
