@@ -3,6 +3,7 @@ from autopgm.external.K2Score import K2Score
 from autopgm.merger import BayesianMerger
 from autopgm.parser import *
 from math import inf
+import multiprocessing as mp
 
 
 class SingleBayesianEstimator(object):
@@ -28,7 +29,7 @@ class SingleBayesianEstimator(object):
 
 class MultipleBayesianEstimator(object):
     def __init__(self, file_names, query_targets=[], query_evidence=[], inbound_nodes=[], outbound_nodes=[],
-                 known_independencies=[], n_random_restarts=10, random_restart_length=5, start=None):
+                 known_independencies=[], n_random_restarts=0, random_restart_length=0, start=None):
         self.multiple_file_parser = MultipleFileParser(file_names, query_targets=query_targets,
                                                        query_evidence=query_evidence)
         self.inbound_nodes = inbound_nodes
@@ -43,39 +44,49 @@ class MultipleBayesianEstimator(object):
         if len(self.orientations) == 0:
             self.orientations = [{}]
 
-        for orientation in self.orientations:
-            inbound_nodes = []
-            outbound_nodes = []
-            for i in range(len(self.multiple_file_parser.single_file_parsers)):
-                inbound_nodes.append(self.inbound_nodes[:])
-                outbound_nodes.append(self.outbound_nodes[:])
-            for variable in orientation.keys():
-                for position in orientation[variable].keys():
-                    if orientation[variable][position] == 0:
-                        outbound_nodes[position].append(variable)
+        # select the best model from all orientations
+        with mp.Pool(processes=mp.cpu_count()) as pool:
+            o_models = [pool.apply_async(self.orientation_model,
+                                         args=(orientation, start, n_random_restarts, random_restart_length)) for
+                        orientation in self.orientations]
+            orientation_models = [o.get() for o in o_models]
 
-            # single parsers
-            current_models = []
-            current_data_volumes = []
-            total_score = 0.
-            for i in range(len(self.multiple_file_parser.single_file_parsers)):
-                parser = self.multiple_file_parser.single_file_parsers[i]
-                estimator = SingleBayesianEstimator(parser, inbound_nodes[i], outbound_nodes[i],
-                                                    known_independencies=self.known_independencies[:],
-                                                    n_random_restarts=n_random_restarts,
-                                                    random_restart_length=random_restart_length)
-                estimator.random_restart(start=start)
-                current_model = estimator.fit()
-                total_score += K2Score(parser.data_frame).score(current_model)
-                current_models.append(current_model)
-                current_data_volumes.append(parser.data_frame.shape[0])
+        self.merged_model, self.max_score = max(orientation_models, key=lambda x: x[1])
 
-            if total_score > self.max_score:
-                try:
-                    self.merged_model = BayesianMerger(current_models, current_data_volumes).merge()
-                    self.max_score = max(total_score, self.max_score)
-                except ValueError:
-                    continue
+    def orientation_model(self, orientation, start=None, n_random_restarts=0, random_restart_length=0):
+        inbound_nodes = []
+        outbound_nodes = []
+        for i in range(len(self.multiple_file_parser.single_file_parsers)):
+            inbound_nodes.append(self.inbound_nodes[:])
+            outbound_nodes.append(self.outbound_nodes[:])
+        for variable in orientation.keys():
+            for position in orientation[variable].keys():
+                if orientation[variable][position] == 0:
+                    outbound_nodes[position].append(variable)
+
+        # single parsers
+        current_models = []
+        current_data_volumes = []
+        total_score = 0.
+        for i in range(len(self.multiple_file_parser.single_file_parsers)):
+            parser = self.multiple_file_parser.single_file_parsers[i]
+            estimator = SingleBayesianEstimator(parser, inbound_nodes[i], outbound_nodes[i],
+                                                known_independencies=self.known_independencies[:],
+                                                n_random_restarts=n_random_restarts,
+                                                random_restart_length=random_restart_length)
+            estimator.random_restart(start=start)
+            current_model = estimator.fit()
+            total_score += K2Score(parser.data_frame).score(current_model)
+            current_models.append(current_model)
+            current_data_volumes.append(parser.data_frame.shape[0])
+
+        try:
+            merged_model = BayesianMerger(current_models, current_data_volumes).merge()
+        except ValueError:
+            merged_model = None
+            total_score = -inf
+
+        return merged_model, total_score
 
     def get_model(self):
         return self.merged_model
