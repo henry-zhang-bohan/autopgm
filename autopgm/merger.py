@@ -2,6 +2,7 @@ from pgmpy.models import BayesianModel
 from pgmpy.factors.discrete import TabularCPD
 import numpy as np
 import itertools
+import networkx as nx
 
 
 class BayesianMergerOld(object):
@@ -99,6 +100,14 @@ class BayesianMerger(object):
                         new_cpd = self.merge_cpd_with_parents(cpd, volume)
                         self.cpds[cpd.variable] = (new_cpd, volume + self.cpds[cpd.variable][1])
 
+        # check for cycles
+        g = nx.DiGraph(list(self.edges))
+        try:
+            nx.find_cycle(g)
+            return None
+        except nx.exception.NetworkXNoCycle:
+            pass
+
         # new model
         self.model = BayesianModel(self.edges)
         for cpd, volume in self.cpds.values():
@@ -107,11 +116,6 @@ class BayesianMerger(object):
             except ValueError:
                 self.model.add_node(cpd.variable)
                 self.model.add_cpds(cpd)
-
-            if not np.allclose(cpd.to_factor().marginalize([cpd.variable], inplace=False).values.flatten('C'),
-                               np.ones(np.product(cpd.cardinality[:0:-1])),
-                               atol=0.01):
-                print(cpd)
 
         if self.model.check_model():
             return self.model
@@ -211,7 +215,7 @@ class BayesianMerger(object):
                     cpd_copy.marginalize([marg_var[0]])
                     marg_prob.append(cpd_copy.get_values().reshape((cpd.variable_card,)))
 
-                # average out the marignals
+                # average out the marginals
                 average_prob = np.average(marg_prob, axis=0)
 
                 # fix invalid cpd

@@ -23,6 +23,7 @@ class SingleBayesianEstimator(object):
         return self.model.edges
 
     def fit(self):
+        self.model.cpds = []
         self.model.fit(self.single_file_parser.data_frame)
         return self.model
 
@@ -125,25 +126,49 @@ class MultipleBayesianEstimator(object):
         self.outbound_nodes = outbound_nodes
         self.known_independencies = known_independencies
         self.merged_model = None
+        self.start = []
 
         # select the best model from all orientations
-        with mp.Pool(processes=mp.cpu_count()) as pool:
-            single_models = [pool.apply_async(self.single_model,
-                                              args=(parser, n_random_restarts, random_restart_length)) for
+        with mp.Pool(processes=min(mp.cpu_count(), len(self.multiple_file_parser.single_file_parsers))) as pool:
+            single_models = [pool.apply_async(self.single_model, args=(parser, 0, random_restart_length, None)) for
                              parser in self.multiple_file_parser.single_file_parsers]
             self.single_models = [sm.get() for sm in single_models]
+            self.start.append(self.single_models)
 
         # merge models
         data_volumes = list(map(lambda x: x.data_frame.shape[0], self.multiple_file_parser.single_file_parsers))
         self.merged_model = BayesianMerger(self.single_models, data_volumes).merge()
 
-    def single_model(self, parser, n_random_restarts=0, random_restart_length=0):
+        # multiple random restarts
+        if n_random_restarts > 0:
+            for i in range(1, n_random_restarts + 1):
+                self.one_iteration(i)
+
+    def one_iteration(self, iteration):
+        parsers = self.multiple_file_parser.single_file_parsers
+        # select the best model from all orientations
+        with mp.Pool(processes=min(mp.cpu_count(), len(self.multiple_file_parser.single_file_parsers))) as pool:
+            single_models = [pool.apply_async(self.single_model, args=(parsers[i], 1, iteration, self.start[-1][i]))
+                             for i in range(len(parsers))]
+            self.single_models = [sm.get() for sm in single_models]
+            self.start.append(self.single_models)
+
+        # merge models
+        data_volumes = list(map(lambda x: x.data_frame.shape[0], self.multiple_file_parser.single_file_parsers))
+        merged_model = BayesianMerger(self.single_models, data_volumes).merge()
+
+        # check and update model
+        if merged_model:
+            self.merged_model = merged_model
+
+    def single_model(self, parser, n_random_restarts=0, random_restart_length=0, start=None):
         estimator = SingleBayesianEstimator(parser, self.inbound_nodes, self.outbound_nodes,
                                             known_independencies=self.known_independencies[:],
                                             n_random_restarts=n_random_restarts,
                                             random_restart_length=random_restart_length)
-        estimator.random_restart()
-        return estimator.fit()
+        estimator.random_restart(start=start)
+        model = estimator.fit()
+        return model
 
     def get_model(self):
         return self.merged_model
