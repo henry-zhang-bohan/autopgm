@@ -1,6 +1,6 @@
 from autopgm.external.HillClimbSearch import HillClimbSearch
 from autopgm.external.K2Score import K2Score
-from autopgm.merger import BayesianMerger
+from autopgm.merger import BayesianMerger, BayesianMergerOld
 from autopgm.parser import *
 from math import inf
 import multiprocessing as mp
@@ -27,7 +27,7 @@ class SingleBayesianEstimator(object):
         return self.model
 
 
-class MultipleBayesianEstimator(object):
+class MultipleBayesianEstimatorOld(object):
     def __init__(self, file_names, query_targets=[], query_evidence=[], inbound_nodes=[], outbound_nodes=[],
                  known_independencies=[], n_random_restarts=0, random_restart_length=0, start=None):
         self.multiple_file_parser = MultipleFileParser(file_names, query_targets=query_targets,
@@ -81,12 +81,69 @@ class MultipleBayesianEstimator(object):
             current_data_volumes.append(parser.data_frame.shape[0])
 
         try:
-            merged_model = BayesianMerger(current_models, current_data_volumes).merge()
+            merged_model = BayesianMergerOld(current_models, current_data_volumes).merge()
         except ValueError:
             merged_model = None
             total_score = -inf
 
         return merged_model, total_score
+
+    def get_model(self):
+        return self.merged_model
+
+    def print_edges(self):
+        print(self.merged_model.edges)
+
+    def print_cpds(self):
+        for cpd in self.merged_model.get_cpds():
+            print("CPD of {variable}:".format(variable=cpd.variable))
+            print(cpd)
+
+    def plot_edges(self):
+        import matplotlib.pyplot as plt
+        import networkx as nx
+
+        edges = [(X[:2].capitalize(), Y[:2].capitalize()) for (X, Y) in self.merged_model.edges]
+
+        G = nx.DiGraph()
+        G.add_edges_from(edges)
+        pos = nx.shell_layout(G)
+
+        nx.draw_networkx_nodes(G, pos, node_size=750)
+        nx.draw_networkx_labels(G, pos)
+        nx.draw_networkx_edges(G, pos, arrows=True, arrowsize=20)
+
+        plt.show()
+
+
+class MultipleBayesianEstimator(object):
+    def __init__(self, file_names, query_targets=[], query_evidence=[], inbound_nodes=[], outbound_nodes=[],
+                 known_independencies=[], n_random_restarts=0, random_restart_length=0, start=None):
+        self.multiple_file_parser = MultipleFileParser(file_names, query_targets=query_targets,
+                                                       query_evidence=query_evidence)
+        self.inbound_nodes = inbound_nodes
+        self.outbound_nodes = outbound_nodes
+        self.known_independencies = known_independencies
+        self.merged_model = None
+
+        # select the best model from all orientations
+        with mp.Pool(processes=mp.cpu_count()) as pool:
+            single_models = [pool.apply_async(self.single_model,
+                                              args=(parser, n_random_restarts, random_restart_length)) for
+                             parser in self.multiple_file_parser.single_file_parsers]
+            self.single_models = [sm.get() for sm in single_models]
+
+        # merge models
+        data_volumes = list(map(lambda x: x.data_frame.shape[0], self.multiple_file_parser.single_file_parsers))
+        self.merged_model = BayesianMerger(self.single_models, data_volumes).merge()
+
+    def single_model(self, parser, n_random_restarts=0, random_restart_length=0):
+        estimator = SingleBayesianEstimator(parser, self.inbound_nodes, self.outbound_nodes,
+                                            known_independencies=self.known_independencies[:],
+                                            n_random_restarts=n_random_restarts,
+                                            random_restart_length=random_restart_length)
+        estimator.random_restart()
+        return estimator.fit()
 
     def get_model(self):
         return self.merged_model
