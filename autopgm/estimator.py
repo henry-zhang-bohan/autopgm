@@ -3,6 +3,7 @@ from autopgm.external.K2Score import K2Score
 from autopgm.merger import BayesianMerger, BayesianMergerOld
 from autopgm.parser import *
 from math import inf
+import itertools
 import multiprocessing as mp
 
 
@@ -126,23 +127,18 @@ class MultipleBayesianEstimator(object):
         self.outbound_nodes = outbound_nodes
         self.known_independencies = known_independencies
         self.merged_model = None
-        self.start = []
+        self.best_score = -inf
 
-        # select the best model from all orientations
-        with mp.Pool(processes=min(mp.cpu_count(), len(self.multiple_file_parser.single_file_parsers))) as pool:
-            single_models = [pool.apply_async(self.single_model, args=(parser, 0, random_restart_length, None)) for
-                             parser in self.multiple_file_parser.single_file_parsers]
-            self.single_models = [sm.get() for sm in single_models]
-            self.start.append(self.single_models)
-
-        # merge models
-        data_volumes = list(map(lambda x: x.data_frame.shape[0], self.multiple_file_parser.single_file_parsers))
-        self.merged_model = BayesianMerger(self.single_models, data_volumes).merge()
+        # initialize model starts
+        self.start = [[]]
+        self.models_with_scores = []
+        for i in range(len(self.multiple_file_parser.single_file_parsers)):
+            self.start[0].append(None)
+            self.models_with_scores.append([])
 
         # multiple random restarts
-        if n_random_restarts > 0:
-            for i in range(1, n_random_restarts + 1):
-                self.one_iteration(i)
+        for i in range(n_random_restarts + 1):
+            self.one_iteration(i)
 
     def one_iteration(self, iteration):
         parsers = self.multiple_file_parser.single_file_parsers
@@ -150,16 +146,43 @@ class MultipleBayesianEstimator(object):
         with mp.Pool(processes=min(mp.cpu_count(), len(self.multiple_file_parser.single_file_parsers))) as pool:
             single_models = [pool.apply_async(self.single_model, args=(parsers[i], 1, iteration, self.start[-1][i]))
                              for i in range(len(parsers))]
-            self.single_models = [sm.get() for sm in single_models]
-            self.start.append(self.single_models)
+            current_single_models = [sm.get() for sm in single_models]
+            self.start.append(current_single_models)
+
+        # rank by scores
+        for i in range(len(parsers)):
+            current_score = K2Score(parsers[i].data_frame).score(current_single_models[i])
+            # record score
+            if len(self.models_with_scores[i]) == 0:
+                self.models_with_scores[i].append((current_single_models[i], current_score))
+            # record incremental score
+            elif current_score - self.models_with_scores[i][-1][1] > 1.:
+                self.models_with_scores[i].append((current_single_models[i],
+                                                   current_score - self.models_with_scores[i][-1][1]))
 
         # merge models
         data_volumes = list(map(lambda x: x.data_frame.shape[0], self.multiple_file_parser.single_file_parsers))
-        merged_model = BayesianMerger(self.single_models, data_volumes).merge()
-
-        # check and update model
-        if merged_model:
+        merged_model = BayesianMerger(current_single_models, data_volumes).merge()
+        merged_score = sum(map(lambda x: x[-1][1], self.models_with_scores))
+        if merged_model and merged_score - self.best_score > 1:
             self.merged_model = merged_model
+            self.best_score = merged_score
+            return
+
+        # all combinations
+        all_combos = []
+        for combo in itertools.product(*self.models_with_scores):
+            current_models = list(map(lambda x: x[0], combo))
+            merged_model = BayesianMerger(current_models, data_volumes).merge()
+            if merged_model:
+                all_combos.append((merged_model, sum(map(lambda x: x[1], combo))))
+
+        # max
+        if len(all_combos) > 0:
+            best_model = max(all_combos, key=lambda x: x[1])
+            if best_model[1] - self.best_score > 1:
+                self.best_score = best_model[1]
+                self.merged_model = max(all_combos, key=lambda x: x[1])
 
     def single_model(self, parser, n_random_restarts=0, random_restart_length=0, start=None):
         estimator = SingleBayesianEstimator(parser, self.inbound_nodes, self.outbound_nodes,
