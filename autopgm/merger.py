@@ -102,7 +102,6 @@ class BayesianMerger(object):
         # new model
         self.model = BayesianModel(self.edges)
         for cpd, volume in self.cpds.values():
-            cpd.normalize()
             try:
                 self.model.add_cpds(cpd)
             except ValueError:
@@ -179,20 +178,45 @@ class BayesianMerger(object):
 
         # transform cpd
         new_prob = new_prob.reshape((base_cpd.variable_card, np.product(new_card[1:])))
-        new_prob = (new_prob / new_prob.sum(axis=0))
-
-        # check for nan columns, and replace with uniform distribution
-        for i in range(new_prob.shape[1]):
-            is_valid = True
-            for j in new_prob[:, i]:
-                if np.isnan(j):
-                    is_valid = False
-                    break
-            if not is_valid:
-                new_prob[:, i] = float(1) / float(new_prob.shape[0])
-
-        # construct new cpd
         new_cpd = TabularCPD(variable=base_cpd.variable, variable_card=base_cpd.variable_card,
                              values=new_prob, evidence=new_vars[1:], evidence_card=new_card[1:])
 
-        return new_cpd
+        return self.smooth_cpd(new_cpd)
+
+    @staticmethod
+    def smooth_cpd(cpd):
+        prob = cpd.values
+        evidence_card = cpd.cardinality[1:]
+        evidence_card_indices = list(itertools.product(*list(map(lambda x: list(range(x)), list(evidence_card)))))
+        for index in evidence_card_indices:
+            value_prob = 0.
+            for i in range(cpd.variable_card):
+                local_cpd = prob[i]
+                value_prob += local_cpd[tuple(index)]
+
+            # invalid cpd
+            if value_prob == 0:
+                reduce_values = []
+                for j in range(1, len(cpd.variables)):
+                    reduce_values.append((cpd.variables[j], index[j - 1]))
+
+                # reduce one value a time
+                marg_prob = []
+                for k in range(len(reduce_values)):
+                    reduce_values_copy = reduce_values[:]
+                    marg_var = reduce_values_copy.pop(k)
+                    cpd_copy = cpd.copy()
+                    cpd_copy.reduce(reduce_values_copy)
+                    np.nan_to_num(cpd_copy.values, copy=False)
+                    cpd_copy.marginalize([marg_var[0]])
+                    marg_prob.append(cpd_copy.get_values().reshape((cpd.variable_card,)))
+
+                # average out the marignals
+                average_prob = np.average(marg_prob, axis=0)
+
+                # fix invalid cpd
+                for i in range(cpd.variable_card):
+                    prob[tuple([i] + list(index))] = average_prob[i]
+
+        cpd.normalize()
+        return cpd
