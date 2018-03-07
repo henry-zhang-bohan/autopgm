@@ -67,7 +67,7 @@ class CSVWriter(object):
         self.graph = PGMGraph(self.model)
         self.order = self.graph.topological_sort()
 
-        # populate cpds
+        # populate cpd's
         self.cpds = {}
         for cpd in self.model.get_cpds():
             self.cpds[cpd.variable] = cpd
@@ -101,10 +101,12 @@ class CSVWriter(object):
         accumulated_prob.insert(0, 0)
 
         # generate prediction of state
+        state = -1
         random_number = random.random()
         for i in range(1, len(accumulated_prob)):
-            if random_number >= accumulated_prob[i - 1] and random_number < accumulated_prob[i]:
+            if accumulated_prob[i - 1] <= random_number < accumulated_prob[i]:
                 state = i - 1
+                break
 
         return state
 

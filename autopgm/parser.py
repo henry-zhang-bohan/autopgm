@@ -81,11 +81,13 @@ class MultipleFileParser(object):
         # permutations of orientations
         for variable in self.shared_dict.keys():
             self.orientation_candidates[variable] = []
+
             # all outbound
             current_orientation = {}
             for position in self.shared_dict[variable]:
                 current_orientation[position] = 0
             self.orientation_candidates[variable].append(current_orientation)
+
             # one inbound, rest outbound
             for i in self.shared_dict[variable]:
                 current_orientation = {}
