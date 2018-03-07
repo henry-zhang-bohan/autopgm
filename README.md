@@ -23,5 +23,5 @@ You can perform `VariableElimination` and then `query` as in `pgmpy`:
 ```python
 from pgmpy.inference import VariableElimination
 inference = VariableElimination(model)
-inference.query(['var1'], evidence={'var2': 0, 'var3': 1})['var1']
+q = inference.query(['var1'], evidence={'var2': 0, 'var3': 1})['var1']
 ```
