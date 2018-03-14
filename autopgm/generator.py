@@ -122,6 +122,16 @@ class CSVSplitter(object):
             data_frame.to_csv(split_path + pre + '_' + str(i + 1) + '.csv', index=False)
 
 
+class TrainTestSplitter(object):
+    def __init__(self, file_name, pre, frac=0.8, split_path=''):
+        data_frame = pandas.read_csv(file_name).sample(frac=1.)
+        split_index = int(frac * data_frame.shape[0])
+        train_df = data_frame[:split_index]
+        test_df = data_frame[split_index:]
+        train_df.to_csv(split_path + pre + '_train.csv', index=False)
+        test_df.to_csv(split_path + pre + '_test.csv', index=False)
+
+
 class ModelVerifier(object):
     def __init__(self, file_name, edges=None):
         self.file_name = file_name
