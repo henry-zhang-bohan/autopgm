@@ -8,10 +8,10 @@ from math import inf
 
 class SingleBayesianEstimator(object):
     def __init__(self, single_file_parser, inbound_nodes, outbound_nodes, known_independencies=[],
-                 n_random_restarts=0, random_restart_length=0):
+                 n_random_restarts=0, random_restart_length=0, scores=None, index=None):
         self.single_file_parser = single_file_parser
         self.model = None
-        self.hill_climb_search = HillClimbSearch(self.single_file_parser.data_frame,
+        self.hill_climb_search = HillClimbSearch(self.single_file_parser.data_frame, scores=scores, index=index,
                                                  inbound_nodes=inbound_nodes,
                                                  outbound_nodes=outbound_nodes,
                                                  known_independencies=known_independencies,
@@ -45,17 +45,22 @@ class MultipleBayesianEstimator(object):
         if len(self.orientations) == 0:
             self.orientations = [{}]
 
+        # cached score dictionary
+        scores = {}
+        for i in range(len(self.multiple_file_parser.single_file_parsers)):
+            scores[i] = {}
+
         # select the best model from all orientations, parallel processing
         with mp.Pool(processes=min(mp.cpu_count(), len(self.orientations))) as pool:
             o_models = [pool.apply_async(self.orientation_model,
-                                         args=(orientation, start, n_random_restarts, random_restart_length)) for
-                        orientation in self.orientations]
+                                         args=(orientation, start, n_random_restarts, random_restart_length, scores))
+                        for orientation in self.orientations]
             orientation_models = [o.get() for o in o_models]
 
         # select the model with the highest combined score
         self.merged_model, self.max_score = max(orientation_models, key=lambda x: x[1])
 
-    def orientation_model(self, orientation, start=None, n_random_restarts=0, random_restart_length=0):
+    def orientation_model(self, orientation, start=None, n_random_restarts=0, random_restart_length=0, scores=None):
         # restrict specified nodes to only have inward / outward edges
         inbound_nodes = []
         outbound_nodes = []
@@ -73,7 +78,7 @@ class MultipleBayesianEstimator(object):
         total_score = 0.
         for i in range(len(self.multiple_file_parser.single_file_parsers)):
             parser = self.multiple_file_parser.single_file_parsers[i]
-            estimator = SingleBayesianEstimator(parser, inbound_nodes[i], outbound_nodes[i],
+            estimator = SingleBayesianEstimator(parser, inbound_nodes[i], outbound_nodes[i], index=i, scores=scores,
                                                 known_independencies=self.known_independencies[:],
                                                 n_random_restarts=n_random_restarts,
                                                 random_restart_length=random_restart_length)

@@ -8,7 +8,7 @@ import random
 
 class HillClimbSearch(StructureEstimator):
     def __init__(self, data, scoring_method=None, inbound_nodes=[], outbound_nodes=[], known_independencies=[],
-                 n_random_restarts=10, random_restart_length=5, **kwargs):
+                 n_random_restarts=10, random_restart_length=5, scores=None, index=None, **kwargs):
         """
         Class for heuristic hill climb searches for BayesianModels, to learn
         network structure from data. `estimate` attempts to find a model with optimal score.
@@ -45,6 +45,8 @@ class HillClimbSearch(StructureEstimator):
         self.known_independencies = known_independencies
         self.n_random_restarts = n_random_restarts
         self.random_restart_length = random_restart_length
+        self.scores = scores
+        self.index = index
 
         super(HillClimbSearch, self).__init__(data, **kwargs)
 
@@ -83,7 +85,8 @@ class HillClimbSearch(StructureEstimator):
                     old_parents = list(model.get_parents(Y))
                     new_parents = old_parents + [X]
                     if max_indegree is None or len(new_parents) <= max_indegree:
-                        score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
+                        # score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
+                        score_delta = self.get_local_score(Y, new_parents) - self.get_local_score(Y, old_parents)
                         yield (operation, score_delta)
 
         for (X, Y) in model.edges():  # (2) remove single edge
@@ -92,7 +95,8 @@ class HillClimbSearch(StructureEstimator):
                 old_parents = list(model.get_parents(Y))
                 new_parents = old_parents[:]
                 new_parents.remove(X)
-                score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
+                # score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
+                score_delta = self.get_local_score(Y, new_parents) - self.get_local_score(Y, old_parents)
                 yield (operation, score_delta)
 
         for (X, Y) in model.edges():  # (3) flip single edge
@@ -108,10 +112,14 @@ class HillClimbSearch(StructureEstimator):
                         new_Y_parents = old_Y_parents[:]
                         new_Y_parents.remove(X)
                         if max_indegree is None or len(new_X_parents) <= max_indegree:
-                            score_delta = (local_score(X, new_X_parents) +
-                                           local_score(Y, new_Y_parents) -
-                                           local_score(X, old_X_parents) -
-                                           local_score(Y, old_Y_parents))
+                            # score_delta = (local_score(X, new_X_parents) +
+                            #                local_score(Y, new_Y_parents) -
+                            #                local_score(X, old_X_parents) -
+                            #                local_score(Y, old_Y_parents))
+                            score_delta = (self.get_local_score(X, new_X_parents) +
+                                           self.get_local_score(Y, new_Y_parents) -
+                                           self.get_local_score(X, old_X_parents) -
+                                           self.get_local_score(Y, old_Y_parents))
                             yield (operation, score_delta)
 
     def _legal_operations_without_score(self, model, tabu_list=[], max_indegree=None):
@@ -308,3 +316,15 @@ class HillClimbSearch(StructureEstimator):
 
     def calculate_random_restart_length(self, i):
         return int(self.random_restart_length + i)
+
+    def get_local_score(self, node, parents):
+        local_score = self.scoring_method.local_score
+        key = tuple([node, tuple(sorted(parents))])
+        # get score from cache
+        if key in self.scores[self.index].keys():
+            return self.scores[self.index][key]
+        # cache result for later use
+        else:
+            score = local_score(node, parents)
+            self.scores[self.index][key] = score
+            return score
