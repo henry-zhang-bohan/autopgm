@@ -2,6 +2,7 @@ from autopgm.external.HillClimbSearch import HillClimbSearch
 from autopgm.external.K2Score import K2Score
 from autopgm.merger import BayesianMerger
 from autopgm.parser import *
+from pgmpy.estimators import BayesianEstimator
 import multiprocessing as mp
 from math import inf
 
@@ -24,7 +25,10 @@ class SingleBayesianEstimator(object):
 
     def fit(self):
         self.model.cpds = []
-        self.model.fit(self.single_file_parser.data_frame)
+        self.model.fit(self.single_file_parser.data_frame,
+                       estimator=BayesianEstimator,
+                       prior_type='BDeu',
+                       equivalent_sample_size=1)
         return self.model
 
 
