@@ -50,8 +50,6 @@ class Experiment(object):
         # train merged Bayesian network
         self.merged_model = self.merge()
 
-        print('---------- EVALUATION ----------\n')
-
         # print log probability
         self.log_prob()
 
@@ -97,26 +95,30 @@ class Experiment(object):
             CSVWriter(self.model, self.data_dir + self.name + '_train_syn.csv', size=1000000)
 
     def log_prob(self):
+        print('----- log likelihood of the test set -----')
+
         joint_distribution = JointDistribution(self.data_dir + self.name + '_train.csv', self.variables)
         log_prob = JointLogProbability(self.data_dir + self.name + '_test.csv', joint_distribution, self.variables)
-        print('Joint training \t log probability:', log_prob.calculate_log_prob())
+        print('Training set tabular joint distribution:\t', log_prob.calculate_log_prob())
 
         joint_distribution = JointDistribution(self.data_dir + self.name + '_test.csv', self.variables)
         log_prob = JointLogProbability(self.data_dir + self.name + '_test.csv', joint_distribution, self.variables)
-        print('Joint test set \t log probability:', log_prob.calculate_log_prob())
+        print('Test set tabular joint distribution:\t\t', log_prob.calculate_log_prob())
 
         log_prob = BayesianLogProbability(self.model, self.data_dir + self.name + '_test.csv')
-        print('Single model \t log probability:', log_prob.calculate_log_prob())
+        print('Independent Bayesian network:\t\t\t\t', log_prob.calculate_log_prob())
 
         log_prob = BayesianLogProbability(self.merged_model, self.data_dir + self.name + '_test.csv')
-        print('Merged model \t log probability:', log_prob.calculate_log_prob())
+        print('Merged Bayesian network:\t\t\t\t\t', log_prob.calculate_log_prob())
 
         print('\n')
 
     def k2_score(self):
+        print('----- K2 score -----')
+
         data = pandas.read_csv(self.data_dir + self.name + '_test.csv')
-        print('Single model K2 score:', K2Score(data).score(self.model))
-        print('Merged model K2 score:', K2Score(data).score(self.merged_model))
+        print('Independent BN:\t', K2Score(data).score(self.model))
+        print('Merged BN:\t\t', K2Score(data).score(self.merged_model))
 
         print('\n')
 
