@@ -6,7 +6,7 @@ from autopgm.helper import *
 
 
 class Experiment(object):
-    def __init__(self, name, data_path, data_dir, split_cols):
+    def __init__(self, name, data_path, data_dir, split_cols, synthetic=False):
         """
         automate setting up and running experiments
         :param name: name of the experiment
@@ -20,6 +20,7 @@ class Experiment(object):
         self.data_path = data_path
         self.data_dir = data_dir
         self.split_cols = split_cols
+        self.synthetic = synthetic
 
         # create directory
         if not os.path.isdir(data_dir):
@@ -36,11 +37,15 @@ class Experiment(object):
             self.variables.update(split_cols[i])
         self.variables = list(self.variables)
 
-        # split tables
-        self.split_tables()
-
         # train single Bayesian network
         self.model = self.train()
+
+        # synthetic data
+        if synthetic:
+            self.synthesize_data()
+
+        # split tables
+        self.split_tables()
 
         # train merged Bayesian network
         self.merged_model = self.merge()
@@ -59,13 +64,13 @@ class Experiment(object):
 
     def split_tables(self):
         if not os.path.exists(self.data_dir + self.name + '_1.csv'):
-            CSVSplitter(self.data_dir + self.name + '_train.csv', self.split_cols, self.name, self.data_dir)
+            file_path = self.data_dir + self.name + ('_train_syn.csv' if self.synthetic else '_train.csv')
+            CSVSplitter(file_path, self.split_cols, self.name, self.data_dir)
 
     def train(self):
         if not os.path.exists(self.data_dir + self.name + '.p'):
-            model = MultipleBayesianEstimator([self.data_dir + self.name + '_train.csv'],
+            model = MultipleBayesianEstimator([self.data_dir + self.name + '_train.csv'], n_random_restarts=0,
                                               query_targets=self.variables, query_evidence=self.variables).merged_model
-            print('model:', model)
             pickle.dump(model, open(self.data_dir + self.name + '.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
         else:
             model = pickle.load(open(self.data_dir + self.name + '.p', 'rb'))
@@ -86,6 +91,10 @@ class Experiment(object):
         else:
             model = pickle.load(open(self.data_dir + self.name + '_merged.p', 'rb'))
         return model
+
+    def synthesize_data(self):
+        if not os.path.exists(self.data_dir + self.name + '_train_syn.csv'):
+            CSVWriter(self.model, self.data_dir + self.name + '_train_syn.csv', size=1000000)
 
     def log_prob(self):
         log_prob = BayesianLogProbability(self.model, self.data_dir + self.name + '_test.csv')
@@ -108,6 +117,7 @@ class Experiment(object):
         import networkx as nx
 
         model = self.merged_model if merged else self.model
+        plt.figure()
         fig_name = self.data_dir + (self.name + '_merged.png' if merged else self.name + '.png')
         edges = [(X[:2].capitalize(), Y[:2].capitalize()) for (X, Y) in model.edges]
 
@@ -124,3 +134,13 @@ class Experiment(object):
 
         if show:
             plt.show()
+
+    def print_model_cpds(self):
+        for cpd in self.model.get_cpds():
+            print("CPD of {variable}:".format(variable=cpd.variable))
+            print(cpd)
+
+    def print_merged_model_cpds(self):
+        for cpd in self.merged_model.get_cpds():
+            print("CPD of {variable}:".format(variable=cpd.variable))
+            print(cpd)

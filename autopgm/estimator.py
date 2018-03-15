@@ -116,8 +116,8 @@ class MultipleBayesianEstimator(object):
         import matplotlib.pyplot as plt
         import networkx as nx
 
+        plt.figure()
         edges = [(X[:2].capitalize(), Y[:2].capitalize()) for (X, Y) in self.merged_model.edges]
-
         G = nx.DiGraph()
         G.add_edges_from(edges)
         pos = nx.shell_layout(G)
