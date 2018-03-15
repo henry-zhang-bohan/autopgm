@@ -97,11 +97,19 @@ class Experiment(object):
             CSVWriter(self.model, self.data_dir + self.name + '_train_syn.csv', size=1000000)
 
     def log_prob(self):
+        joint_distribution = JointDistribution(self.data_dir + self.name + '_train.csv', self.variables)
+        log_prob = JointLogProbability(self.data_dir + self.name + '_test.csv', joint_distribution, self.variables)
+        print('Joint training \t log probability:', log_prob.calculate_log_prob())
+
+        joint_distribution = JointDistribution(self.data_dir + self.name + '_test.csv', self.variables)
+        log_prob = JointLogProbability(self.data_dir + self.name + '_test.csv', joint_distribution, self.variables)
+        print('Joint test set \t log probability:', log_prob.calculate_log_prob())
+
         log_prob = BayesianLogProbability(self.model, self.data_dir + self.name + '_test.csv')
-        print('Single model log probability:', log_prob.calculate_log_prob())
+        print('Single model \t log probability:', log_prob.calculate_log_prob())
 
         log_prob = BayesianLogProbability(self.merged_model, self.data_dir + self.name + '_test.csv')
-        print('Merged model log probability:', log_prob.calculate_log_prob())
+        print('Merged model \t log probability:', log_prob.calculate_log_prob())
 
         print('\n')
 
