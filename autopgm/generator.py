@@ -124,7 +124,7 @@ class CSVSplitter(object):
 
 class TrainTestSplitter(object):
     def __init__(self, file_name, pre, frac=0.8, split_path=''):
-        data_frame = pandas.read_csv(file_name).sample(frac=1.)
+        data_frame = pandas.read_csv(file_name).sample(frac=1., random_state=0)
         split_index = int(frac * data_frame.shape[0])
         train_df = data_frame[:split_index]
         test_df = data_frame[split_index:]

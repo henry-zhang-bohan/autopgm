@@ -36,7 +36,7 @@ class BayesianMerger(object):
                             prob = cpd.values[j]
                             new_cpd.append((old_prob * old_volume + prob * volume) / float(old_volume + volume))
                         new_tabular_cpd = TabularCPD(variable=cpd.variable, variable_card=cpd.variable_card,
-                                                     values=[new_cpd])
+                                                     values=[new_cpd], state_names=old_cpd.state_names)
                         self.cpds[cpd.variable] = (new_tabular_cpd, old_volume + volume)
 
         # new model

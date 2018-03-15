@@ -3,5 +3,6 @@ __all__ = [
     'parser',
     'estimator',
     'generator',
-    'helper'
+    'helper',
+    'experiment'
 ]
