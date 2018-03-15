@@ -9,10 +9,10 @@ setup(name='autopgm',
       license='MIT',
       packages=['autopgm'],
       install_requires=[
-          'scipy >= 0.19.1',
+          'scipy >= 0.18.1',
           'numpy >= 1.14.0',
-          'pandas == 0.20.3',
-          'networkx == 2.1',
+          'pandas >= 0.20.3',
+          'networkx >= 2.1',
           'matplotlib >= 2.0.2',
           'pgmpy'
       ],
