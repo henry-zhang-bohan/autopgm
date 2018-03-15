@@ -3,10 +3,11 @@ import pickle
 from autopgm.generator import *
 from autopgm.estimator import *
 from autopgm.helper import *
+from pgmpy.inference import VariableElimination
 
 
 class Experiment(object):
-    def __init__(self, name, data_path, data_dir, split_cols, synthetic=False):
+    def __init__(self, name, data_path, data_dir, split_cols, synthetic=False, show_scores=True):
         """
         automate setting up and running experiments
         :param name: name of the experiment
@@ -39,6 +40,7 @@ class Experiment(object):
 
         # train single Bayesian network
         self.model = self.train()
+        self.inference = VariableElimination(self.model)
 
         # synthetic data
         if synthetic:
@@ -49,12 +51,13 @@ class Experiment(object):
 
         # train merged Bayesian network
         self.merged_model = self.merge()
+        self.merged_inference = VariableElimination(self.merged_model)
 
-        # print log probability
-        self.log_prob()
-
-        # print K2 score
-        self.k2_score()
+        if show_scores:
+            # print log probability
+            self.log_prob()
+            # print K2 score
+            self.k2_score()
 
         # save plots
         self.plot_edges(merged=False)
@@ -154,3 +157,38 @@ class Experiment(object):
         for cpd in self.merged_model.get_cpds():
             print("CPD of {variable}:".format(variable=cpd.variable))
             print(cpd)
+
+    def query(self, variable, evidence, show=False, df=None):
+        # load test data
+        if not df:
+            df = pandas.read_csv(self.data_dir + self.name + '_test.csv')
+        df_q_str = ' & '.join(['{} == {}'.format(var, val) for var, val in evidence.items()])
+
+        # ground truth counting
+        if len(df_q_str) > 0:
+            df_q = df.query(df_q_str)[variable].value_counts(normalize=True, sort=False).sort_index()
+        else:
+            df_q = df[variable].value_counts(normalize=True, sort=False).sort_index()
+
+        # prepare queries
+        q = self.inference.query([variable], evidence=evidence)[variable]
+        merged_q = self.merged_inference.query([variable], evidence=evidence)[variable]
+
+        # print probability distribution
+        evidence_str = ', '.join(['{}={}'.format(var, val) for var, val in evidence.items()])
+        if len(evidence) > 0:
+            print('\nP({} | {})'.format(variable, evidence_str))
+        else:
+            print('\nP({})'.format(variable))
+
+        # ground truth
+        print('\n(1) Test set distribution:')
+        print(df_q)
+
+        # independent model
+        print('\n(2) Independent Bayesian network:')
+        print(q)
+
+        # merged model
+        print('\n(3) Merged Bayesian network:')
+        print(merged_q)
