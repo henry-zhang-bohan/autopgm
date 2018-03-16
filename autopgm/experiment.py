@@ -307,11 +307,16 @@ class Experiment(object):
                     query['evidence'][e[0]] = e[1]
                 queries.append(query)
 
+        # only sample 100 inferences
+        random.seed(0)
+        if len(queries) > 10000:
+            queries = random.sample(queries, 10000)
+
         # compute queries
-        computed_queries = []
-        for query in queries:
-            query_result = self.query(query['variable'], query['evidence'], df=df_test)
-            computed_queries.append(query_result)
+        with mp.Pool(processes=min(mp.cpu_count(), len(queries))) as pool:
+            query_results = [pool.apply_async(self.query, args=(query['variable'], query['evidence'], False, df_test))
+                             for query in queries]
+            computed_queries = [result.get() for result in query_results]
         computed_queries.sort(key=lambda x: x['l2'])
 
         if not os.path.exists(self.data_dir + 'queries/'):
