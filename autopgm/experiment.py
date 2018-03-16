@@ -1,5 +1,6 @@
 import os
 import pickle
+from functools import reduce
 from autopgm.generator import *
 from autopgm.estimator import *
 from autopgm.helper import *
@@ -52,6 +53,9 @@ class Experiment(object):
         # train merged Bayesian network
         self.merged_model = self.merge()
         self.merged_inference = VariableElimination(self.merged_model)
+
+        # state names
+        self.model_states, self.merged_model_states = self.state_names()
 
         if show_scores:
             # print log probability
@@ -158,9 +162,31 @@ class Experiment(object):
             print("CPD of {variable}:".format(variable=cpd.variable))
             print(cpd)
 
+    def state_names(self):
+        model_state_names = {}
+        for cpd in self.model.get_cpds():
+            for state in cpd.state_names.keys():
+                if state not in model_state_names.keys():
+                    model_state_names[state] = cpd.state_names[state]
+
+        merged_model_state_names = {}
+        for cpd in self.merged_model.get_cpds():
+            for state in cpd.state_names.keys():
+                if state not in merged_model_state_names.keys():
+                    merged_model_state_names[state] = cpd.state_names[state]
+
+        return model_state_names, merged_model_state_names
+
+    def translate_evidence(self, evidence, merged=False):
+        state_names = self.merged_model_states if merged else self.model_states
+        new_evidence = {}
+        for e in evidence.keys():
+            new_evidence[e] = state_names[e].index(evidence[e])
+        return new_evidence
+
     def query(self, variable, evidence, show=False, df=None):
         # load test data
-        if not df:
+        if df is None:
             df = pandas.read_csv(self.data_dir + self.name + '_test.csv')
         df_q_str = ' & '.join(['{} == {}'.format(var, val) for var, val in evidence.items()])
 
@@ -171,24 +197,124 @@ class Experiment(object):
             df_q = df[variable].value_counts(normalize=True, sort=False).sort_index()
 
         # prepare queries
-        q = self.inference.query([variable], evidence=evidence)[variable]
-        merged_q = self.merged_inference.query([variable], evidence=evidence)[variable]
+        q = self.inference.query([variable], evidence=self.translate_evidence(evidence))[variable]
+        merged_q = self.merged_inference.query([variable], evidence=self.translate_evidence(evidence, True))[variable]
 
-        # print probability distribution
+        # description
         evidence_str = ', '.join(['{}={}'.format(var, val) for var, val in evidence.items()])
         if len(evidence) > 0:
-            print('\nP({} | {})'.format(variable, evidence_str))
+            prob_str = '\nP({} | {})'.format(variable, evidence_str)
         else:
-            print('\nP({})'.format(variable))
+            prob_str = '\nP({})'.format(variable)
 
-        # ground truth
-        print('\n(1) Test set distribution:')
-        print(df_q)
+        if show:
+            # print probability distribution
+            print(prob_str)
 
-        # independent model
-        print('\n(2) Independent Bayesian network:')
-        print(q)
+            # ground truth
+            print('\n(1) Test set distribution:')
+            print(df_q)
 
-        # merged model
-        print('\n(3) Merged Bayesian network:')
-        print(merged_q)
+            # independent model
+            print('\n(2) Independent Bayesian network:')
+            print(q)
+
+            # merged model
+            print('\n(3) Merged Bayesian network:')
+            print(merged_q)
+
+        # L1
+        try:
+            l1 = np.linalg.norm(df_q.values - merged_q.values, 1)
+        except ValueError:
+            l1 = float('inf')
+
+        # L2
+        try:
+            l2 = np.linalg.norm(df_q.values - merged_q.values, 2)
+        except ValueError:
+            l2 = float('inf')
+
+        return {
+            'data_frame_query': df_q,
+            'inference_query': q,
+            'merged_inference_query': merged_q,
+            'description': prob_str,
+            'l1': l1,
+            'l2': l2
+        }
+
+    def write_query_to_file(self, query, index):
+        with open(self.data_dir + 'queries/' + str(index + 1) + '.txt', 'w') as f:
+            print(query['description'].strip(), file=f)
+
+            # ground truth
+            print('\n(1) Test set distribution:', file=f)
+            print(query['data_frame_query'], file=f)
+
+            # independent model
+            print('\n(2) Independent Bayesian network:', file=f)
+            print(query['inference_query'], file=f)
+
+            # merged model
+            print('\n(3) Merged Bayesian network:', file=f)
+            print(query['merged_inference_query'], file=f)
+
+    def all_queries(self):
+        import itertools
+
+        variables_intersection = reduce(set.intersection, list(map(lambda x: set(x), self.split_cols)))
+        variables_union = set().union(*self.split_cols)
+        variables_non_shared = variables_union - variables_intersection
+        split_cols = list(map(lambda x: set(x), self.split_cols))
+        df_train = pandas.read_csv(self.data_dir + self.name + '_train.csv')
+        df_test = pandas.read_csv(self.data_dir + self.name + '_test.csv')
+
+        queries = []
+        var_states = {}
+
+        # get all non-shared variables
+        for var in variables_non_shared:
+            alien_evidence = []
+            for alien_var in variables_non_shared:
+                if alien_var != var and len(list(filter(lambda x: var in x and alien_var in x, split_cols))) == 0:
+                    alien_evidence.append(alien_var)
+
+            # all combinations of evidence
+            combinations = []
+            for i in range(len(alien_evidence) + 1):
+                combo = itertools.combinations(alien_evidence, i)
+                combinations.extend(combo)
+
+            evidence_combinations = []
+            # all values of combinations
+            for combo in combinations:
+                evidence_combo = []
+                for e in combo:
+                    if e in var_states.keys():
+                        e_values = var_states[e]
+                    else:
+                        e_values = sorted(list(df_train[e].unique()))
+                        var_states[e] = e_values
+                    evidence_combo.append(list(map(lambda x: (e, x), e_values)))
+                evidence_combo = list(itertools.product(*evidence_combo))
+                evidence_combinations.extend(evidence_combo)
+
+            # convert to dictionary
+            for combo in evidence_combinations:
+                query = {'variable': var, 'evidence': {}}
+                for e in combo:
+                    query['evidence'][e[0]] = e[1]
+                queries.append(query)
+
+        # compute queries
+        computed_queries = []
+        for query in queries:
+            query_result = self.query(query['variable'], query['evidence'], df=df_test)
+            computed_queries.append(query_result)
+        computed_queries.sort(key=lambda x: x['l2'])
+
+        if not os.path.exists(self.data_dir + 'queries/'):
+            os.makedirs(self.data_dir + 'queries/')
+        for i in range(len(computed_queries)):
+            self.write_query_to_file(computed_queries[i], i)
