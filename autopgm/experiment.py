@@ -1,6 +1,7 @@
 import os
 import pickle
 from functools import reduce
+from math import log2
 from autopgm.generator import *
 from autopgm.estimator import *
 from autopgm.helper import *
@@ -324,3 +325,52 @@ class Experiment(object):
             os.makedirs(self.data_dir + 'queries/')
         for i in range(len(computed_queries)):
             self.write_query_to_file(computed_queries[i], i)
+
+    def test_convergence(self):
+        import matplotlib.pyplot as plt
+
+        if not os.path.exists(self.data_dir + 'convergence/'):
+            os.makedirs(self.data_dir + 'convergence/')
+
+        data = pandas.read_csv(self.data_dir + self.name + '_train.csv')
+        data_size = data.shape[0]
+
+        sizes = []
+        log_likelihoods = []
+        joint_distribution = JointDistribution(self.data_dir + self.name + '_train.csv', self.variables)
+        train_log_likelihood = JointLogProbability(self.data_dir + self.name + '_test.csv', joint_distribution,
+                                                   self.variables).calculate_log_prob()
+        independent_model_log_likelihood = \
+            BayesianLogProbability(self.model, self.data_dir + self.name + '_test.csv').calculate_log_prob()
+
+        for i in range(int(log2(data_size)) + 1)[-10:]:
+            size = 2 ** i
+
+            # split data
+            data_path = self.data_dir + 'convergence/' + str(size) + '.csv'
+            if not os.path.exists(data_path):
+                selected_data = data.sample(size)
+                selected_data.to_csv(data_path, index=False)
+                CSVSplitter(data_path, self.split_cols, str(size), self.data_dir + 'convergence/')
+
+            # train merged model
+            model_path = self.data_dir + 'convergence/' + str(size) + '_merged.p'
+            pre = self.data_dir + 'convergence/' + str(size) + '_'
+            if not os.path.exists(model_path):
+                file_names = list(map(lambda x: pre + str(x + 1) + '.csv', range(len(self.split_cols))))
+                model = MultipleBayesianEstimator(file_names, query_targets=self.variables,
+                                                  query_evidence=self.variables).merged_model
+                pickle.dump(model, open(pre + 'merged.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+            else:
+                model = pickle.load(open(pre + 'merged.p', 'rb'))
+
+            log_likelihood = BayesianLogProbability(model, self.data_dir + self.name + '_test.csv')
+            log_likelihoods.append(log_likelihood.calculate_log_prob())
+            sizes.append(size)
+
+        plt.figure()
+        plt.semilogx(sizes, log_likelihoods, basex=2, label='merged model')
+        plt.semilogx(sizes, [independent_model_log_likelihood] * len(sizes), basex=2, label='independent model')
+        plt.semilogx(sizes, [train_log_likelihood] * len(sizes), basex=2, label='ground truth')
+        plt.legend()
+        plt.savefig(self.data_dir + 'convergence/convergence.png')
