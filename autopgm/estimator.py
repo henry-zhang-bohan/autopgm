@@ -3,8 +3,9 @@ from autopgm.external.K2Score import K2Score
 from autopgm.merger import BayesianMerger
 from autopgm.parser import *
 from pgmpy.estimators import BayesianEstimator
-import multiprocessing as mp
 from math import inf
+import multiprocessing as mp
+import random
 
 
 class SingleBayesianEstimator(object):
@@ -34,7 +35,8 @@ class SingleBayesianEstimator(object):
 
 class MultipleBayesianEstimator(object):
     def __init__(self, file_names, query_targets=[], query_evidence=[], inbound_nodes=[], outbound_nodes=[],
-                 known_independencies=[], n_random_restarts=0, random_restart_length=0, start=None):
+                 known_independencies=[], n_random_restarts=0, random_restart_length=0, start=None,
+                 max_orientations=None, random_state=None):
         self.multiple_file_parser = MultipleFileParser(file_names, query_targets=query_targets,
                                                        query_evidence=query_evidence)
         self.inbound_nodes = inbound_nodes
@@ -48,6 +50,13 @@ class MultipleBayesianEstimator(object):
         # single file case
         if len(self.orientations) == 0:
             self.orientations = [{}]
+
+        # subsample orientations
+        random.shuffle(self.orientations)
+        if random_state:
+            random.seed(random_state)
+        if max_orientations:
+            self.orientations = random.sample(self.orientations, max_orientations)
 
         # cached score dictionary
         scores = {}

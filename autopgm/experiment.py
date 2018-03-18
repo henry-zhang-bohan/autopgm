@@ -8,7 +8,7 @@ from pgmpy.inference import VariableElimination
 
 
 class Experiment(object):
-    def __init__(self, name, data_path, data_dir, split_cols, synthetic=False, show_scores=True):
+    def __init__(self, name, data_path, data_dir, split_cols, synthetic=False, show_scores=True, n_random_restarts=0):
         """
         automate setting up and running experiments
         :param name: name of the experiment
@@ -23,6 +23,7 @@ class Experiment(object):
         self.data_dir = data_dir
         self.split_cols = split_cols
         self.synthetic = synthetic
+        self.n_random_restarts = n_random_restarts
 
         # create directory
         if not os.path.isdir(data_dir):
@@ -74,8 +75,9 @@ class Experiment(object):
 
     def train(self):
         if not os.path.exists(self.data_dir + self.name + '.p'):
-            model = MultipleBayesianEstimator([self.data_dir + self.name + '_train.csv'], n_random_restarts=0,
-                                              query_targets=self.variables, query_evidence=self.variables).merged_model
+            model = MultipleBayesianEstimator([self.data_dir + self.name + '_train.csv'],
+                                              n_random_restarts=self.n_random_restarts, query_targets=self.variables,
+                                              query_evidence=self.variables).merged_model
             pickle.dump(model, open(self.data_dir + self.name + '.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
         else:
             model = pickle.load(open(self.data_dir + self.name + '.p', 'rb'))
@@ -91,7 +93,6 @@ class Experiment(object):
             # train merged model
             model = MultipleBayesianEstimator(file_names, query_targets=self.variables,
                                               query_evidence=self.variables).merged_model
-            print('merged:', model)
             pickle.dump(model, open(self.data_dir + self.name + '_merged.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
         else:
             model = pickle.load(open(self.data_dir + self.name + '_merged.p', 'rb'))
