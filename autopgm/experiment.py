@@ -269,8 +269,8 @@ class Experiment(object):
         variables_union = set().union(*self.split_cols)
         variables_non_shared = variables_union - variables_intersection
         split_cols = list(map(lambda x: set(x), self.split_cols))
-        df_train = pandas.read_csv(self.data_dir + self.name + '_train.csv')
-        df_test = pandas.read_csv(self.data_dir + self.name + '_test.csv')
+        df_train = pandas.read_csv(self.data_dir + self.name + '_train.csv')[self.variables].dropna()
+        df_test = pandas.read_csv(self.data_dir + self.name + '_test.csv')[self.variables].dropna()
 
         queries = []
         var_states = {}
