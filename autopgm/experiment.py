@@ -337,6 +337,7 @@ class Experiment(object):
 
         sizes = []
         log_likelihoods = []
+        kl_divergence_values = []
         joint_distribution = JointDistribution(self.data_dir + self.name + '_train.csv', self.variables)
         train_log_likelihood = JointLogProbability(self.data_dir + self.name + '_test.csv', joint_distribution,
                                                    self.variables).calculate_log_prob()
@@ -367,6 +368,7 @@ class Experiment(object):
             log_likelihood = BayesianLogProbability(model, self.data_dir + self.name + '_test.csv')
             log_likelihoods.append(log_likelihood.calculate_log_prob())
             sizes.append(size)
+            kl_divergence_values.append(self.kl_divergence(model))
 
         plt.figure()
         plt.semilogx(sizes, log_likelihoods, basex=2, label='merged model')
@@ -374,3 +376,18 @@ class Experiment(object):
         plt.semilogx(sizes, [train_log_likelihood] * len(sizes), basex=2, label='ground truth')
         plt.legend()
         plt.savefig(self.data_dir + 'convergence/convergence.png')
+
+        plt.figure()
+        plt.semilogx(sizes, kl_divergence_values, basex=2)
+        plt.savefig(self.data_dir + 'convergence/kl_divergence.png')
+
+    def kl_divergence(self, model):
+        kl_d = KLDivergence(model, self.data_dir + self.name + '_test.csv', self.variables)
+        kl_d_value = kl_d.calculate_kl_divergence()
+        return kl_d_value
+
+    def model_kl_divergence(self):
+        return self.kl_divergence(self.model)
+
+    def merged_model_kl_divergence(self):
+        return self.kl_divergence(self.merged_model)
