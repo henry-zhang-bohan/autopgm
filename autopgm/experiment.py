@@ -227,13 +227,13 @@ class Experiment(object):
 
         # L1
         try:
-            l1 = np.linalg.norm(df_q.values - merged_q.values, 1)
+            l1 = np.linalg.norm(df_q.values - merged_q.values, 1) / len(df_q.values)
         except ValueError:
             l1 = float('inf')
 
         # L2
         try:
-            l2 = np.linalg.norm(df_q.values - merged_q.values, 2)
+            l2 = np.linalg.norm(df_q.values - merged_q.values, 2) / len(df_q.values)
         except ValueError:
             l2 = float('inf')
 
