@@ -344,7 +344,7 @@ class Experiment(object):
         independent_model_log_likelihood = \
             BayesianLogProbability(self.model, self.data_dir + self.name + '_test.csv').calculate_log_prob()
 
-        for i in range(int(log2(data_size)) + 1)[-10:]:
+        for i in range(8, int(log2(data_size)) + 1)[-15:]:
             size = 2 ** i
 
             # split data

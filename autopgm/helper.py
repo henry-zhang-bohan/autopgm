@@ -1,6 +1,6 @@
 import pandas
 from numpy import product
-from math import log, exp
+from math import log2
 
 
 class BayesianLogProbability(object):
@@ -27,7 +27,7 @@ class BayesianLogProbability(object):
 
                 # P(var | theta)
                 prob = cpd_copy.values[cpd.state_names[cpd.variable].index(assignments[cpd.variable])]
-                log_prob += log(prob)
+                log_prob += log2(prob)
 
         return log_prob
 
@@ -53,7 +53,7 @@ class JointLogProbability(object):
                 prob = self.distribution.distribution[values] * normalizing_factor
             else:
                 prob = smooth_prob
-            log_prob += log(prob)
+            log_prob += log2(prob)
 
         return log_prob
 
@@ -113,10 +113,10 @@ class KLDivergence(object):
 
                 # P(var | theta)
                 prob = cpd_copy.values[cpd.state_names[cpd.variable].index(assignments[cpd.variable])]
-                log_prob += log(prob)
+                log_prob += log2(prob)
 
             # calculate divergence
             joint_prob = self.joint_probabilities[values]
-            model_prob = exp(log_prob)
-            d += joint_prob * (log(model_prob) - log(joint_prob))
+            model_prob = 2 ** log_prob
+            d += joint_prob * (log2(model_prob) - log2(joint_prob))
         return -d
