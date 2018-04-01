@@ -1,7 +1,6 @@
 import os
 import pickle
 from functools import reduce
-from math import log2
 from autopgm.generator import *
 from autopgm.estimator import *
 from autopgm.helper import *
@@ -382,6 +381,14 @@ class Experiment(object):
         plt.xlabel('Amount of Training Data')
         plt.ylabel('KL Divergence')
         plt.savefig(self.data_dir + 'convergence/kl_divergence.png')
+
+        pickle.dump({'sizes': sizes,
+                     'log_likelihoods': log_likelihoods,
+                     'single': [independent_model_log_likelihood] * len(sizes),
+                     'truth': [train_log_likelihood] * len(sizes),
+                     'kl': kl_divergence_values},
+                    open(self.data_dir + 'convergence.p', 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
 
     def kl_divergence(self, model):
         kl_d = KLDivergence(model, self.data_dir + self.name + '_test.csv', self.variables)
