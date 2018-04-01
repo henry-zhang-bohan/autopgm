@@ -379,6 +379,8 @@ class Experiment(object):
 
         plt.figure()
         plt.semilogx(sizes, kl_divergence_values, basex=2)
+        plt.xlabel('Amount of Training Data')
+        plt.ylabel('KL Divergence')
         plt.savefig(self.data_dir + 'convergence/kl_divergence.png')
 
     def kl_divergence(self, model):

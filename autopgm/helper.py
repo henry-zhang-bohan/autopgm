@@ -17,17 +17,20 @@ class BayesianLogProbability(object):
         for i, row in self.data_frame.iterrows():
             assignments = row.to_dict()
             for cpd in self.model.cpds:
-                # collect parents' values
-                evidence = []
-                for e in cpd.variables[1:]:
-                    value = cpd.state_names[e].index(assignments[e])
-                    evidence.append((e, value))
-                cpd_copy = cpd.copy()
-                cpd_copy.reduce(evidence)
+                try:
+                    # collect parents' values
+                    evidence = []
+                    for e in cpd.variables[1:]:
+                        value = cpd.state_names[e].index(assignments[e])
+                        evidence.append((e, value))
+                    cpd_copy = cpd.copy()
+                    cpd_copy.reduce(evidence)
 
-                # P(var | theta)
-                prob = cpd_copy.values[cpd.state_names[cpd.variable].index(assignments[cpd.variable])]
-                log_prob += log2(prob)
+                    # P(var | theta)
+                    prob = cpd_copy.values[cpd.state_names[cpd.variable].index(assignments[cpd.variable])]
+                    log_prob += log2(prob)
+                except ValueError:
+                    log_prob += log2(0.01)
 
         return log_prob
 
@@ -103,17 +106,20 @@ class KLDivergence(object):
                 assignments[self.variables[i]] = values[i]
 
             for cpd in self.model.cpds:
-                # collect parents' values
-                evidence = []
-                for e in cpd.variables[1:]:
-                    value = cpd.state_names[e].index(assignments[e])
-                    evidence.append((e, value))
-                cpd_copy = cpd.copy()
-                cpd_copy.reduce(evidence)
+                try:
+                    # collect parents' values
+                    evidence = []
+                    for e in cpd.variables[1:]:
+                        value = cpd.state_names[e].index(assignments[e])
+                        evidence.append((e, value))
+                    cpd_copy = cpd.copy()
+                    cpd_copy.reduce(evidence)
 
-                # P(var | theta)
-                prob = cpd_copy.values[cpd.state_names[cpd.variable].index(assignments[cpd.variable])]
-                log_prob += log2(prob)
+                    # P(var | theta)
+                    prob = cpd_copy.values[cpd.state_names[cpd.variable].index(assignments[cpd.variable])]
+                    log_prob += log2(prob)
+                except ValueError:
+                    log_prob += log2(0.01)
 
             # calculate divergence
             joint_prob = self.joint_probabilities[values]
