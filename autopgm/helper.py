@@ -126,3 +126,19 @@ class KLDivergence(object):
             model_prob = 2 ** log_prob
             d += joint_prob * (log2(model_prob) - log2(joint_prob))
         return -d
+
+
+class KLDivergencePQ(object):
+    def __init__(self, p, q):
+        self.p = p
+        self.q = q
+
+    def calculate_kl_divergence(self):
+        # if dimension doesn't match, return infinity
+        if len(self.p) != len(self.q):
+            return float('inf')
+        # KL divergence / relative entropy
+        kl = 0.
+        for i in range(len(self.p)):
+            kl += self.p[i] * log2(self.p[i] / self.q[i])
+        return kl
