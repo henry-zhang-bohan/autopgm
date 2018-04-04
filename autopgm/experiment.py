@@ -236,13 +236,17 @@ class Experiment(object):
         except ValueError:
             l2 = float('inf')
 
+        # KL Divergence
+        kl = KLDivergencePQ(df_q.values, merged_q.values).calculate_kl_divergence()
+
         return {
             'data_frame_query': df_q,
             'inference_query': q,
             'merged_inference_query': merged_q,
             'description': prob_str,
             'l1': l1,
-            'l2': l2
+            'l2': l2,
+            'kl': kl
         }
 
     def write_query_to_file(self, query, index):
