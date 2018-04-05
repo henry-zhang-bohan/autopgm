@@ -185,7 +185,7 @@ class Experiment(object):
             new_evidence[e] = state_names[e].index(evidence[e])
         return new_evidence
 
-    def query(self, variable, evidence, show=False, df=None):
+    def query(self, variable, evidence, show=False, df=None, comparison=0):
         # load test data
         if df is None:
             df = pandas.read_csv(self.data_dir + self.name + '_test.csv')
@@ -198,7 +198,7 @@ class Experiment(object):
             df_q = df[variable].value_counts(normalize=True, sort=False).sort_index()
 
         # prepare queries
-        q = self.inference.query([variable], evidence=self.translate_evidence(evidence))[variable]
+        single_q = self.inference.query([variable], evidence=self.translate_evidence(evidence))[variable]
         merged_q = self.merged_inference.query([variable], evidence=self.translate_evidence(evidence, True))[variable]
 
         # description
@@ -218,30 +218,43 @@ class Experiment(object):
 
             # independent model
             print('\n(2) Independent Bayesian network:')
-            print(q)
+            print(single_q)
 
             # merged model
             print('\n(3) Merged Bayesian network:')
             print(merged_q)
 
+        # single model vs. test data
+        if comparison == 1:
+            p = df_q.values
+            q = single_q.values
+        # merged model vs. single model
+        elif comparison == 2:
+            p = single_q.values
+            q = merged_q.values
+        # default: merged model vs. test data
+        else:
+            p = df_q.values
+            q = merged_q.values
+
         # L1
         try:
-            l1 = np.linalg.norm(df_q.values - merged_q.values, 1)
+            l1 = np.linalg.norm(p - q, 1) / len(p)
         except ValueError:
             l1 = float('inf')
 
         # L2
         try:
-            l2 = np.linalg.norm(df_q.values - merged_q.values, 2)
+            l2 = np.linalg.norm(p - q, 2) / len(p)
         except ValueError:
             l2 = float('inf')
 
         # KL Divergence
-        kl = KLDivergencePQ(df_q.values, merged_q.values).calculate_kl_divergence()
+        kl = KLDivergencePQ(p, q).calculate_kl_divergence()
 
         return {
             'data_frame_query': df_q,
-            'inference_query': q,
+            'inference_query': single_q,
             'merged_inference_query': merged_q,
             'description': prob_str,
             'l1': l1,
