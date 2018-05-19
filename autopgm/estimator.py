@@ -143,6 +143,8 @@ class GlobalBayesianEstimator(object):
         self.file_names = file_names
         self.query_targets = query_targets
         self.query_evidence = query_evidence
+        self.multiple_file_parser = MultipleFileParser(file_names, query_targets=query_targets,
+                                                       query_evidence=query_evidence, orientations=False)
 
     def fit(self):
         pass
