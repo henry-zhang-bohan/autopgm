@@ -136,3 +136,16 @@ class MultipleBayesianEstimator(object):
         nx.draw_networkx_edges(G, pos, arrows=True, arrowsize=20)
 
         plt.show()
+
+
+class GlobalBayesianEstimator(object):
+    def __init__(self, file_names, query_targets=[], query_evidence=[]):
+        self.file_names = file_names
+        self.query_targets = query_targets
+        self.query_evidence = query_evidence
+
+    def fit(self):
+        pass
+
+    def random_restart(self, start=None):
+        pass
