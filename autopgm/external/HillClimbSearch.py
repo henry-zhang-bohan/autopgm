@@ -330,42 +330,34 @@ class HillClimbSearch(StructureEstimator):
             return score
 
 
-class GlobalHillClimbSearch(StructureEstimator):
-    def __init__(self, data, scoring_method=None, **kwargs):
+class GlobalHillClimbSearch(object):
+    # class GlobalHillClimbSearch(StructureEstimator):
+    def __init__(self, parser):
         """
         Class for heuristic hill climb searches for BayesianModels, to learn
         network structure from data. `estimate` attempts to find a model with optimal score.
 
         Parameters
         ----------
-        data: pandas DataFrame object
-            datafame object where each column represents one variable.
-            (If some values in the data are missing the data cells should be set to `numpy.NaN`.
-            Note that pandas converts each column containing `numpy.NaN`s to dtype `float`.)
-
-        scoring_method: Instance of a `StructureScore`-subclass (`K2Score` is used as default)
-            An instance of `K2Score`, `BdeuScore`, or `BicScore`.
-            This score is optimized during structure estimation by the `estimate`-method.
-
-        state_names: dict (optional)
-            A dict indicating, for each variable, the discrete set of states (or values)
-            that the variable can take. If unspecified, the observed values in the data set
-            are taken to be the only possible states.
-
-        complete_samples_only: bool (optional, default `True`)
-            Specifies how to deal with missing data, if present. If set to `True` all rows
-            that contain `np.Nan` somewhere are ignored. If `False` then, for each variable,
-            every row where neither the variable nor its parents are `np.NaN` is used.
-            This sets the behavior of the `state_count`-method.
+        parser: MultipleFileParser
         """
-        if scoring_method is not None:
-            self.scoring_method = scoring_method
-        else:
-            self.scoring_method = K2Score(data, **kwargs)
 
-        super(GlobalHillClimbSearch, self).__init__(data, **kwargs)
+        self.parser = parser
+        self.scoring_methods = []
+        for single_parser in self.parser.single_file_parsers:
+            self.scoring_methods.append(K2Score(single_parser.data_frame))
 
-    def _legal_operations(self, model, tabu_list=[], max_indegree=None):
+        # variable -> data source mapping
+        self.variable_source_mapping = {}
+        for i in range(len(self.parser.single_file_parsers)):
+            parser = self.parser.single_file_parsers[i]
+            for var in parser.variables:
+                if var not in self.variable_source_mapping.keys():
+                    self.variable_source_mapping[var] = {i}
+                else:
+                    self.variable_source_mapping[var].add(i)
+
+    def _legal_operations(self, model, tabu_list=[], max_indegree=None, outbound_nodes=[]):
         """Generates a list of legal (= not in tabu_list) graph modifications
         for a given model, together with their score changes. Possible graph modifications:
         (1) add, (2) remove, or (3) flip a single edge. For details on scoring
@@ -373,48 +365,104 @@ class GlobalHillClimbSearch(StructureEstimator):
         If a number `max_indegree` is provided, only modifications that keep the number
         of parents for each node below `max_indegree` are considered."""
 
-        local_score = self.scoring_method.local_score
-        nodes = self.state_names.keys()
-        potential_new_edges = (set(permutations(nodes, 2)) -
-                               set(model.edges()) -
-                               set([(Y, X) for (X, Y) in model.edges()]))
+        # local_score = self.scoring_method.local_score
+        # nodes = self.state_names.keys()
+
+        # outbound nodes: inbound edges are prohibited
+        nodes = self.parser.variables
+        prohibited_inbound_edges = set()
+        for node in outbound_nodes:
+            prohibited_inbound_edges.update([(X, node) for X in nodes])
+
+        potential_new_edges = set()
+        edge_map = {}
+        for i in range(len(self.parser.single_file_parsers)):
+            local_nodes = self.parser.single_file_parsers[i].variables
+            potential_new_local_edges = (set(permutations(local_nodes, 2)) -
+                                         set([(X, Y) for (X, Y) in model.edges()]) -
+                                         set([(Y, X) for (X, Y) in model.edges()]) -
+                                         prohibited_inbound_edges)
+
+            # store which data source the edge resides in
+            for edge in potential_new_local_edges:
+                if edge in edge_map.keys():
+                    edge_map[edge].append(i)
+                else:
+                    edge_map[edge] = [i]
+            potential_new_edges.update(potential_new_local_edges)
 
         for (X, Y) in potential_new_edges:  # (1) add single edge
-            if nx.is_directed_acyclic_graph(nx.DiGraph(model.edges() + [(X, Y)])):
+            if nx.is_directed_acyclic_graph(nx.DiGraph(list(model.edges()) + [(X, Y)])):
                 operation = ('+', (X, Y))
                 if operation not in tabu_list:
-                    old_parents = model.get_parents(Y)
+                    old_parents = list(model.get_parents(Y))
                     new_parents = old_parents + [X]
                     if max_indegree is None or len(new_parents) <= max_indegree:
-                        score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
-                        yield(operation, score_delta)
+                        max_score_delta = float('-inf')
+                        for index in edge_map[(X, Y)]:
+                            nodes = set(old_parents + new_parents + [X, Y])
+                            if len(list(filter(lambda x: x not in self.parser.single_file_parsers[index].variables,
+                                               nodes))) > 0:
+                                continue
+                            local_score = self.scoring_methods[index].local_score
+                            score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
+                            if score_delta > max_score_delta:
+                                max_score_delta = score_delta
+                        yield (operation, max_score_delta)
 
         for (X, Y) in model.edges():  # (2) remove single edge
             operation = ('-', (X, Y))
             if operation not in tabu_list:
-                old_parents = model.get_parents(Y)
+                old_parents = list(model.get_parents(Y))
                 new_parents = old_parents[:]
                 new_parents.remove(X)
-                score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
-                yield(operation, score_delta)
+                max_score_delta = float('-inf')
+                for index in self.data_source(X, Y):
+                    nodes = set(old_parents + new_parents + [X, Y])
+                    if len(list(
+                            filter(lambda x: x not in self.parser.single_file_parsers[index].variables, nodes))) > 0:
+                        continue
+                    local_score = self.scoring_methods[index].local_score
+                    score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
+                    if score_delta > max_score_delta:
+                        max_score_delta = score_delta
+                yield (operation, max_score_delta)
 
         for (X, Y) in model.edges():  # (3) flip single edge
-            new_edges = model.edges() + [(Y, X)]
+            new_edges = list(model.edges()) + [(Y, X)]
             new_edges.remove((X, Y))
             if nx.is_directed_acyclic_graph(nx.DiGraph(new_edges)):
                 operation = ('flip', (X, Y))
                 if operation not in tabu_list and ('flip', (Y, X)) not in tabu_list:
-                    old_X_parents = model.get_parents(X)
-                    old_Y_parents = model.get_parents(Y)
+                    old_X_parents = list(model.get_parents(X))
+                    old_Y_parents = list(model.get_parents(Y))
                     new_X_parents = old_X_parents + [Y]
                     new_Y_parents = old_Y_parents[:]
                     new_Y_parents.remove(X)
                     if max_indegree is None or len(new_X_parents) <= max_indegree:
-                        score_delta = (local_score(X, new_X_parents) +
-                                       local_score(Y, new_Y_parents) -
-                                       local_score(X, old_X_parents) -
-                                       local_score(Y, old_Y_parents))
-                        yield(operation, score_delta)
+                        max_score_delta = float('-inf')
+                        for index in self.data_source(X, Y):
+                            nodes = set(old_X_parents + new_X_parents + old_Y_parents + new_Y_parents + [X, Y])
+                            if len(list(filter(lambda x: x not in self.parser.single_file_parsers[index].variables,
+                                               nodes))) > 0:
+                                continue
+                            local_score = self.scoring_methods[index].local_score
+                            score_delta = (local_score(X, new_X_parents) +
+                                           local_score(Y, new_Y_parents) -
+                                           local_score(X, old_X_parents) -
+                                           local_score(Y, old_Y_parents))
+                            if score_delta > max_score_delta:
+                                max_score_delta = score_delta
+                        yield (operation, max_score_delta)
+
+    def data_source(self, X, Y):
+        """
+        Finds the common data source between X and Y
+        :param X:
+        :param Y:
+        :return: a list of indices
+        """
+        return self.variable_source_mapping[X].intersection(self.variable_source_mapping[Y])
 
     def estimate(self, start=None, tabu_length=0, max_indegree=None):
         """
@@ -460,7 +508,7 @@ class GlobalHillClimbSearch(StructureEstimator):
         [('J', 'A'), ('B', 'J')]
         """
         epsilon = 1e-8
-        nodes = self.state_names.keys()
+        nodes = self.parser.relevant_variables
         if start is None:
             start = BayesianModel()
             start.add_nodes_from(nodes)

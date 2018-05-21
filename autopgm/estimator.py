@@ -1,4 +1,4 @@
-from autopgm.external.HillClimbSearch import HillClimbSearch
+from autopgm.external.HillClimbSearch import HillClimbSearch, GlobalHillClimbSearch
 from autopgm.external.K2Score import K2Score
 from autopgm.merger import BayesianMerger
 from autopgm.parser import *
@@ -146,8 +146,12 @@ class GlobalBayesianEstimator(object):
         self.multiple_file_parser = MultipleFileParser(file_names, query_targets=query_targets,
                                                        query_evidence=query_evidence, orientations=False)
 
+        # hill climb search using multiple data sources
+        self.hill_climb_search = GlobalHillClimbSearch(self.multiple_file_parser)
+        self.merged_model = None
+
     def fit(self):
-        pass
+        self.merged_model = self.hill_climb_search.estimate()
 
     def random_restart(self, start=None):
         pass
