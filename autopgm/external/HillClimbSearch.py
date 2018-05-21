@@ -360,7 +360,7 @@ class GlobalHillClimbSearch(object):
         self.n_random_restarts = n_random_restarts
         self.random_restart_length = random_restart_length
 
-    def _legal_operations(self, model, tabu_list=[], max_indegree=None, outbound_nodes=[]):
+    def _legal_operations(self, model, tabu_list=[], max_indegree=None):
         """Generates a list of legal (= not in tabu_list) graph modifications
         for a given model, together with their score changes. Possible graph modifications:
         (1) add, (2) remove, or (3) flip a single edge. For details on scoring
@@ -368,23 +368,13 @@ class GlobalHillClimbSearch(object):
         If a number `max_indegree` is provided, only modifications that keep the number
         of parents for each node below `max_indegree` are considered."""
 
-        # local_score = self.scoring_method.local_score
-        # nodes = self.state_names.keys()
-
-        # outbound nodes: inbound edges are prohibited
-        nodes = self.parser.variables
-        prohibited_inbound_edges = set()
-        for node in outbound_nodes:
-            prohibited_inbound_edges.update([(X, node) for X in nodes])
-
         potential_new_edges = set()
         edge_map = {}
         for i in range(len(self.parser.single_file_parsers)):
             local_nodes = self.parser.single_file_parsers[i].variables
             potential_new_local_edges = (set(permutations(local_nodes, 2)) -
                                          set([(X, Y) for (X, Y) in model.edges()]) -
-                                         set([(Y, X) for (X, Y) in model.edges()]) -
-                                         prohibited_inbound_edges)
+                                         set([(Y, X) for (X, Y) in model.edges()]))
 
             # store which data source the edge resides in
             for edge in potential_new_local_edges:
@@ -466,20 +456,13 @@ class GlobalHillClimbSearch(object):
         If a number `max_indegree` is provided, only modifications that keep the number
         of parents for each node below `max_indegree` are considered."""
 
-        # outbound nodes: inbound edges are prohibited
-        nodes = self.parser.variables
-        prohibited_inbound_edges = set()
-        for node in outbound_nodes:
-            prohibited_inbound_edges.update([(X, node) for X in nodes])
-
         potential_new_edges = set()
         edge_map = {}
         for i in range(len(self.parser.single_file_parsers)):
             local_nodes = self.parser.single_file_parsers[i].variables
             potential_new_local_edges = (set(permutations(local_nodes, 2)) -
                                          set([(X, Y) for (X, Y) in model.edges()]) -
-                                         set([(Y, X) for (X, Y) in model.edges()]) -
-                                         prohibited_inbound_edges)
+                                         set([(Y, X) for (X, Y) in model.edges()]))
 
             # store which data source the edge resides in
             for edge in potential_new_local_edges:
