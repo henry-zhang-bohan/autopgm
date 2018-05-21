@@ -398,7 +398,7 @@ class GlobalHillClimbSearch(object):
                     old_parents = list(model.get_parents(Y))
                     new_parents = old_parents + [X]
                     if max_indegree is None or len(new_parents) <= max_indegree:
-                        max_score_delta = float('-inf')
+                        score_deltas = []
                         for index in edge_map[(X, Y)]:
                             nodes = set(old_parents + new_parents + [X, Y])
                             if len(list(filter(lambda x: x not in self.parser.single_file_parsers[index].variables,
@@ -406,9 +406,9 @@ class GlobalHillClimbSearch(object):
                                 continue
                             local_score = self.scoring_methods[index].local_score
                             score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
-                            if score_delta > max_score_delta:
-                                max_score_delta = score_delta
-                        yield (operation, max_score_delta)
+                            score_deltas.append(score_delta)
+                        if len(score_deltas) > 0:
+                            yield (operation, sum(score_deltas) / len(score_deltas))
 
         for (X, Y) in model.edges():  # (2) remove single edge
             operation = ('-', (X, Y))
@@ -416,7 +416,7 @@ class GlobalHillClimbSearch(object):
                 old_parents = list(model.get_parents(Y))
                 new_parents = old_parents[:]
                 new_parents.remove(X)
-                max_score_delta = float('-inf')
+                score_deltas = []
                 for index in self.data_source(X, Y):
                     nodes = set(old_parents + new_parents + [X, Y])
                     if len(list(
@@ -424,9 +424,9 @@ class GlobalHillClimbSearch(object):
                         continue
                     local_score = self.scoring_methods[index].local_score
                     score_delta = local_score(Y, new_parents) - local_score(Y, old_parents)
-                    if score_delta > max_score_delta:
-                        max_score_delta = score_delta
-                yield (operation, max_score_delta)
+                    score_deltas.append(score_delta)
+                if len(score_deltas) > 0:
+                    yield (operation, sum(score_deltas) / len(score_deltas))
 
         for (X, Y) in model.edges():  # (3) flip single edge
             new_edges = list(model.edges()) + [(Y, X)]
@@ -440,7 +440,7 @@ class GlobalHillClimbSearch(object):
                     new_Y_parents = old_Y_parents[:]
                     new_Y_parents.remove(X)
                     if max_indegree is None or len(new_X_parents) <= max_indegree:
-                        max_score_delta = float('-inf')
+                        score_deltas = []
                         for index in self.data_source(X, Y):
                             nodes = set(old_X_parents + new_X_parents + old_Y_parents + new_Y_parents + [X, Y])
                             if len(list(filter(lambda x: x not in self.parser.single_file_parsers[index].variables,
@@ -451,9 +451,9 @@ class GlobalHillClimbSearch(object):
                                            local_score(Y, new_Y_parents) -
                                            local_score(X, old_X_parents) -
                                            local_score(Y, old_Y_parents))
-                            if score_delta > max_score_delta:
-                                max_score_delta = score_delta
-                        yield (operation, max_score_delta)
+                            score_deltas.append(score_delta)
+                        if len(score_deltas) > 0:
+                            yield (operation, sum(score_deltas) / len(score_deltas))
 
     def data_source(self, X, Y):
         """
