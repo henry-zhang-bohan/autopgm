@@ -151,7 +151,7 @@ class GlobalBayesianEstimator(object):
         self.merged_model = None
 
     def fit(self):
-        self.merged_model = self.hill_climb_search.estimate()
+        # structure learning
+        self.merged_model = self.hill_climb_search.random_restart()
 
-    def random_restart(self, start=None):
-        pass
+        # parameter learning

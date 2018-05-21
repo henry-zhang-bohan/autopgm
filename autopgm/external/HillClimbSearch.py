@@ -331,8 +331,7 @@ class HillClimbSearch(StructureEstimator):
 
 
 class GlobalHillClimbSearch(object):
-    # class GlobalHillClimbSearch(StructureEstimator):
-    def __init__(self, parser):
+    def __init__(self, parser, n_random_restarts=10, random_restart_length=5):
         """
         Class for heuristic hill climb searches for BayesianModels, to learn
         network structure from data. `estimate` attempts to find a model with optimal score.
@@ -356,6 +355,10 @@ class GlobalHillClimbSearch(object):
                     self.variable_source_mapping[var] = {i}
                 else:
                     self.variable_source_mapping[var].add(i)
+
+        # random restart parameters
+        self.n_random_restarts = n_random_restarts
+        self.random_restart_length = random_restart_length
 
     def _legal_operations(self, model, tabu_list=[], max_indegree=None, outbound_nodes=[]):
         """Generates a list of legal (= not in tabu_list) graph modifications
@@ -455,6 +458,92 @@ class GlobalHillClimbSearch(object):
                         if len(score_deltas) > 0:
                             yield (operation, sum(score_deltas) / len(score_deltas))
 
+    def _legal_operations_without_score(self, model, tabu_list=[], max_indegree=None, outbound_nodes=[]):
+        """Generates a list of legal (= not in tabu_list) graph modifications
+        for a given model, together with their score changes. Possible graph modifications:
+        (1) add, (2) remove, or (3) flip a single edge. For details on scoring
+        see Koller & Fridman, Probabilistic Graphical Models, Section 18.4.3.3 (page 818).
+        If a number `max_indegree` is provided, only modifications that keep the number
+        of parents for each node below `max_indegree` are considered."""
+
+        # outbound nodes: inbound edges are prohibited
+        nodes = self.parser.variables
+        prohibited_inbound_edges = set()
+        for node in outbound_nodes:
+            prohibited_inbound_edges.update([(X, node) for X in nodes])
+
+        potential_new_edges = set()
+        edge_map = {}
+        for i in range(len(self.parser.single_file_parsers)):
+            local_nodes = self.parser.single_file_parsers[i].variables
+            potential_new_local_edges = (set(permutations(local_nodes, 2)) -
+                                         set([(X, Y) for (X, Y) in model.edges()]) -
+                                         set([(Y, X) for (X, Y) in model.edges()]) -
+                                         prohibited_inbound_edges)
+
+            # store which data source the edge resides in
+            for edge in potential_new_local_edges:
+                if edge in edge_map.keys():
+                    edge_map[edge].append(i)
+                else:
+                    edge_map[edge] = [i]
+            potential_new_edges.update(potential_new_local_edges)
+
+        for (X, Y) in potential_new_edges:  # (1) add single edge
+            if nx.is_directed_acyclic_graph(nx.DiGraph(list(model.edges()) + [(X, Y)])):
+                operation = ('+', (X, Y))
+                if operation not in tabu_list:
+                    old_parents = list(model.get_parents(Y))
+                    new_parents = old_parents + [X]
+                    if max_indegree is None or len(new_parents) <= max_indegree:
+                        valid_count = 0
+                        for index in edge_map[(X, Y)]:
+                            nodes = set(old_parents + new_parents + [X, Y])
+                            if len(list(filter(lambda x: x not in self.parser.single_file_parsers[index].variables,
+                                               nodes))) > 0:
+                                continue
+                            valid_count += 1
+                        if valid_count > 0:
+                            yield operation
+
+        for (X, Y) in model.edges():  # (2) remove single edge
+            operation = ('-', (X, Y))
+            if operation not in tabu_list:
+                old_parents = list(model.get_parents(Y))
+                new_parents = old_parents[:]
+                new_parents.remove(X)
+                valid_count = 0
+                for index in self.data_source(X, Y):
+                    nodes = set(old_parents + new_parents + [X, Y])
+                    if len(list(
+                            filter(lambda x: x not in self.parser.single_file_parsers[index].variables, nodes))) > 0:
+                        continue
+                    valid_count += 1
+                if valid_count > 0:
+                    yield operation
+
+        for (X, Y) in model.edges():  # (3) flip single edge
+            new_edges = list(model.edges()) + [(Y, X)]
+            new_edges.remove((X, Y))
+            if nx.is_directed_acyclic_graph(nx.DiGraph(new_edges)):
+                operation = ('flip', (X, Y))
+                if operation not in tabu_list and ('flip', (Y, X)) not in tabu_list:
+                    old_X_parents = list(model.get_parents(X))
+                    old_Y_parents = list(model.get_parents(Y))
+                    new_X_parents = old_X_parents + [Y]
+                    new_Y_parents = old_Y_parents[:]
+                    new_Y_parents.remove(X)
+                    if max_indegree is None or len(new_X_parents) <= max_indegree:
+                        valid_count = 0
+                        for index in self.data_source(X, Y):
+                            nodes = set(old_X_parents + new_X_parents + old_Y_parents + new_Y_parents + [X, Y])
+                            if len(list(filter(lambda x: x not in self.parser.single_file_parsers[index].variables,
+                                               nodes))) > 0:
+                                continue
+                            valid_count += 1
+                        if valid_count > 0:
+                            yield operation
+
     def data_source(self, X, Y):
         """
         Finds the common data source between X and Y
@@ -464,7 +553,7 @@ class GlobalHillClimbSearch(object):
         """
         return self.variable_source_mapping[X].intersection(self.variable_source_mapping[Y])
 
-    def estimate(self, start=None, tabu_length=0, max_indegree=None):
+    def estimate(self, start=None, tabu_list=[], tabu_length=0, max_indegree=None):
         """
         Performs local hill climb search to estimates the `BayesianModel` structure
         that has optimal score, according to the scoring method supplied in the constructor.
@@ -475,6 +564,7 @@ class GlobalHillClimbSearch(object):
         ----------
         start: BayesianModel instance
             The starting point for the local search. By default a completely disconnected network is used.
+        tabu_list: list
         tabu_length: int
             If provided, the last `tabu_length` graph modifications cannot be reversed
             during the search procedure. This serves to enforce a wider exploration
@@ -515,7 +605,6 @@ class GlobalHillClimbSearch(object):
         elif not isinstance(start, BayesianModel) or not set(start.nodes()) == set(nodes):
             raise ValueError("'start' should be a BayesianModel with the same variables as the data set, or 'None'.")
 
-        tabu_list = []
         current_model = start
 
         while True:
@@ -542,3 +631,67 @@ class GlobalHillClimbSearch(object):
                 tabu_list = ([best_operation] + tabu_list)[:tabu_length]
 
         return current_model
+
+    def global_score(self, model):
+        score = 0
+        for node in model.nodes():
+            scores = []
+            for index in self.variable_source_mapping[node]:
+                nodes = list(filter(lambda x: x not in self.parser.single_file_parsers[index].variables,
+                                    set([node] + list(model.predecessors(node)))))
+                if len(nodes) > 0:
+                    continue
+                scores.append(self.scoring_methods[index].local_score(node, list(model.predecessors(node))))
+            score += sum(scores) / len(scores)
+        return score
+
+    def random_restart(self, start=None, tabu_length=0, max_indegree=None):
+        # starting best model
+        if not start:
+            best_model = self.estimate(tabu_length=tabu_length, max_indegree=max_indegree)
+        else:
+            best_model = start
+        best_score = self.global_score(best_model)
+
+        # iterate random restarts
+        for i in range(self.n_random_restarts):
+            current_model = best_model.copy()
+            n_moves = i + self.random_restart_length
+            tabu_list = []
+
+            # perform random actions
+            for j in range(n_moves):
+                operations = []
+                for operation in self._legal_operations_without_score(current_model, tabu_list, max_indegree):
+                    operations.append(operation)
+
+                try:
+                    operation = random.choice(operations)
+                except IndexError:
+                    continue
+
+                # perform operation
+                if operation[0] == '+':
+                    current_model.add_edge(*operation[1])
+                    tabu_list = ([('-', operation[1])] + tabu_list)[:tabu_length]
+                elif operation[0] == '-':
+                    current_model.remove_edge(*operation[1])
+                    tabu_list = ([('+', operation[1])] + tabu_list)[:tabu_length]
+                elif operation[0] == 'flip':
+                    X, Y = operation[1]
+                    current_model.remove_edge(X, Y)
+                    current_model.add_edge(Y, X)
+                    tabu_list = ([operation] + tabu_list)[:tabu_length]
+
+            # hill climb
+            print('----- hill climbing -----')
+            current_model = self.estimate(start=current_model, tabu_list=tabu_list,
+                                          tabu_length=tabu_length, max_indegree=max_indegree)
+            current_score = self.global_score(current_model)
+
+            # compare with the best model
+            if current_score > best_score:
+                best_model = current_model
+                best_score = current_score
+
+        return best_model.copy()
