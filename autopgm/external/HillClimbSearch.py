@@ -682,7 +682,7 @@ class GlobalHillClimbSearch(object):
                     current_model.add_edge(Y, X)
                     tabu_list = ([operation] + tabu_list)[:tabu_length]
 
-            # hill climb
+            # hill climbing
             print('----- hill climbing -----')
             current_model = self.estimate(start=current_model, tabu_list=tabu_list,
                                           tabu_length=tabu_length, max_indegree=max_indegree)
