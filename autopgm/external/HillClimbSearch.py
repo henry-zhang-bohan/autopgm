@@ -368,13 +368,16 @@ class GlobalHillClimbSearch(object):
         If a number `max_indegree` is provided, only modifications that keep the number
         of parents for each node below `max_indegree` are considered."""
 
+        prohibited_edges = self.outbound_constraints(model)
+
         potential_new_edges = set()
         edge_map = {}
         for i in range(len(self.parser.single_file_parsers)):
             local_nodes = self.parser.single_file_parsers[i].variables
             potential_new_local_edges = (set(permutations(local_nodes, 2)) -
                                          set([(X, Y) for (X, Y) in model.edges()]) -
-                                         set([(Y, X) for (X, Y) in model.edges()]))
+                                         set([(Y, X) for (X, Y) in model.edges()]) -
+                                         prohibited_edges)
 
             # store which data source the edge resides in
             for edge in potential_new_local_edges:
@@ -424,7 +427,7 @@ class GlobalHillClimbSearch(object):
         for (X, Y) in model.edges():  # (3) flip single edge
             new_edges = list(model.edges()) + [(Y, X)]
             new_edges.remove((X, Y))
-            if nx.is_directed_acyclic_graph(nx.DiGraph(new_edges)):
+            if nx.is_directed_acyclic_graph(nx.DiGraph(new_edges)) and (Y, X) not in prohibited_edges:
                 operation = ('flip', (X, Y))
                 if operation not in tabu_list and ('flip', (Y, X)) not in tabu_list:
                     old_X_parents = list(model.get_parents(X))
@@ -448,7 +451,7 @@ class GlobalHillClimbSearch(object):
                         if len(score_deltas) > 0:
                             yield (operation, sum(score_deltas) / len(score_deltas))
 
-    def _legal_operations_without_score(self, model, tabu_list=[], max_indegree=None, outbound_nodes=[]):
+    def _legal_operations_without_score(self, model, tabu_list=[], max_indegree=None):
         """Generates a list of legal (= not in tabu_list) graph modifications
         for a given model, together with their score changes. Possible graph modifications:
         (1) add, (2) remove, or (3) flip a single edge. For details on scoring
@@ -456,13 +459,16 @@ class GlobalHillClimbSearch(object):
         If a number `max_indegree` is provided, only modifications that keep the number
         of parents for each node below `max_indegree` are considered."""
 
+        prohibited_edges = self.outbound_constraints(model)
+
         potential_new_edges = set()
         edge_map = {}
         for i in range(len(self.parser.single_file_parsers)):
             local_nodes = self.parser.single_file_parsers[i].variables
             potential_new_local_edges = (set(permutations(local_nodes, 2)) -
                                          set([(X, Y) for (X, Y) in model.edges()]) -
-                                         set([(Y, X) for (X, Y) in model.edges()]))
+                                         set([(Y, X) for (X, Y) in model.edges()]) -
+                                         prohibited_edges)
 
             # store which data source the edge resides in
             for edge in potential_new_local_edges:
@@ -510,7 +516,7 @@ class GlobalHillClimbSearch(object):
             new_edges.remove((X, Y))
             if nx.is_directed_acyclic_graph(nx.DiGraph(new_edges)):
                 operation = ('flip', (X, Y))
-                if operation not in tabu_list and ('flip', (Y, X)) not in tabu_list:
+                if operation not in tabu_list and ('flip', (Y, X)) not in tabu_list and (Y, X) not in prohibited_edges:
                     old_X_parents = list(model.get_parents(X))
                     old_Y_parents = list(model.get_parents(Y))
                     new_X_parents = old_X_parents + [Y]
@@ -526,6 +532,16 @@ class GlobalHillClimbSearch(object):
                             valid_count += 1
                         if valid_count > 0:
                             yield operation
+
+    def outbound_constraints(self, model):
+        prohibited_edges = set()
+        for (X, Y) in list(model.edges):
+            if Y in self.parser.shared_variables:
+                constrained_sources = self.variable_source_mapping[Y] - self.data_source(X, Y)
+                for i in constrained_sources:
+                    for var in self.parser.single_file_parsers[i].variables:
+                        prohibited_edges.add((var, Y))
+        return prohibited_edges
 
     def data_source(self, X, Y):
         """
