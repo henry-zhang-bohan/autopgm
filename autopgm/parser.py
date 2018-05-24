@@ -19,7 +19,7 @@ class SingleFileParser(object):
 
 
 class MultipleFileParser(object):
-    def __init__(self, file_names, query_targets=[], query_evidence=[]):
+    def __init__(self, file_names, query_targets=[], query_evidence=[], orientations=True):
         self.file_names = file_names
         self.shared_variable_dict = {}
         self.shared_dict = {}
@@ -62,7 +62,8 @@ class MultipleFileParser(object):
             file_parser.populate_shared_variables(self.shared_variables)
 
         # orientations
-        self.calculate_orientations()
+        if orientations:
+            self.calculate_orientations()
 
     def calculate_orientations(self):
         # orientations of shared variables

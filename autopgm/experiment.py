@@ -91,8 +91,8 @@ class Experiment(object):
                 file_names.append('{}{}_{}.csv'.format(self.data_dir, self.name, (i + 1)))
 
             # train merged model
-            model = MultipleBayesianEstimator(file_names, query_targets=self.variables,
-                                              query_evidence=self.variables).merged_model
+            model = GlobalBayesianEstimator(file_names, query_targets=self.variables,
+                                            query_evidence=self.variables).merged_model
             pickle.dump(model, open(self.data_dir + self.name + '_merged.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
         else:
             model = pickle.load(open(self.data_dir + self.name + '_merged.p', 'rb'))
@@ -375,7 +375,7 @@ class Experiment(object):
             pre = self.data_dir + 'convergence/' + str(size) + '_'
             if not os.path.exists(model_path):
                 file_names = list(map(lambda x: pre + str(x + 1) + '.csv', range(len(self.split_cols))))
-                model = MultipleBayesianEstimator(file_names, query_targets=self.variables,
+                model = GlobalBayesianEstimator(file_names, query_targets=self.variables,
                                                   query_evidence=self.variables).merged_model
                 pickle.dump(model, open(pre + 'merged.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
             else:
