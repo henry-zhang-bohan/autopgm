@@ -376,15 +376,17 @@ class Experiment(object):
             if not os.path.exists(model_path):
                 file_names = list(map(lambda x: pre + str(x + 1) + '.csv', range(len(self.split_cols))))
                 model = GlobalBayesianEstimator(file_names, query_targets=self.variables,
-                                                  query_evidence=self.variables).merged_model
+                                                query_evidence=self.variables).merged_model
                 pickle.dump(model, open(pre + 'merged.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
             else:
                 model = pickle.load(open(pre + 'merged.p', 'rb'))
 
             log_likelihood = BayesianLogProbability(model, self.data_dir + self.name + '_test.csv')
-            log_likelihoods.append(log_likelihood.calculate_log_prob())
-            sizes.append(size)
-            kl_divergence_values.append(self.kl_divergence(model))
+            kl_divergence = self.kl_divergence(model)
+            if kl_divergence > 0:
+                sizes.append(size)
+                kl_divergence_values.append(kl_divergence)
+                log_likelihoods.append(log_likelihood.calculate_log_prob())
 
         plt.figure()
         plt.semilogx(sizes, log_likelihoods, basex=2, label='merged model')
