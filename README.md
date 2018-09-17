@@ -7,7 +7,7 @@ Using pip: open `autopgm` folder, and run
 $ pip3 install .
 ```
 
-# Bayesian Data Fusion
+# Bayesian Data Integration
 
 ## Model training
 In `python3`, run
