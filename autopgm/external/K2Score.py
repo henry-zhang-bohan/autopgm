@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from math import lgamma
+from math import lgamma, log
 from autopgm.external.StructureScore import StructureScore
 
 
@@ -54,4 +54,22 @@ class K2Score(StructureScore):
             for state in var_states:
                 if state_counts[parents_state][state] > 0:
                     score += lgamma(state_counts[parents_state][state] + 1)
+        return score
+
+    def local_score_mle(self, variable, parents):
+        "Computes a score that measures how much a \
+        given variable is \"influenced\" by a given list of potential parents."
+
+        var_states = self.state_names[variable]
+        state_counts = self.state_counts(variable, parents)
+
+        score = 0
+        for parents_state in state_counts:  # iterate over df columns (only 1 if no parents)
+            conditional_sample_size = sum(state_counts[parents_state])
+
+            for state in var_states:
+                if state_counts[parents_state][state] > 0:
+                    score += state_counts[parents_state][state] * (log(state_counts[parents_state][state]) -
+                                                                   log(conditional_sample_size))
+
         return score
