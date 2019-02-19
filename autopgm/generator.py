@@ -359,3 +359,88 @@ class StudentModel5(object):
 
         student_model_5.add_cpds(grade_cpd, intel_cpd, letter_cpd, sat_cpd, extra_cpd, admission_cpd)
         self.model = student_model_5
+
+
+class StudentModel6(object):
+    def __init__(self):
+        student_model_6 = BayesianModel([('I', 'G'), ('L', 'G')])
+
+        intel_cpd = TabularCPD(
+            variable='I',
+            variable_card=2,
+            values=[[0.7, 0.3]])
+
+        letter_cpd = TabularCPD(
+            variable='L',
+            variable_card=2,
+            values=[[0.9, 0.1]])
+
+        grade_cpd = TabularCPD(
+            variable='G',
+            variable_card=2,
+            values=[[0.9, 0.6, 0.7, 0.2],
+                    [0.1, 0.4, 0.3, 0.8]],
+            evidence=['I', 'L'],
+            evidence_card=[2, 2])
+
+        student_model_6.add_cpds(grade_cpd, intel_cpd, letter_cpd)
+        self.model = student_model_6
+
+
+class StudentModel7(object):
+    def __init__(self):
+        student_model_7 = BayesianModel([('I', 'S'), ('I', 'G'), ('I', 'L'), ('I', 'E'),
+                                         ('S', 'A'), ('G', 'A'), ('A', 'L'), ('A', 'E')])
+
+        intel_cpd = TabularCPD(
+            variable='I',
+            variable_card=2,
+            values=[[0.5, 0.5]])
+
+        grade_cpd = TabularCPD(
+            variable='G',
+            variable_card=2,
+            values=[[0.8, 0.4],
+                    [0.2, 0.6]],
+            evidence=['I'],
+            evidence_card=[2]
+        )
+
+        sat_cpd = TabularCPD(
+            variable='S',
+            variable_card=2,
+            values=[[0.7, 0.3],
+                    [0.3, 0.7]],
+            evidence=['I'],
+            evidence_card=[2]
+        )
+
+        letter_cpd = TabularCPD(
+            variable='L',
+            variable_card=2,
+            values=[[0.4, 0.3, 0.9, 0.5],
+                    [0.6, 0.7, 0.1, 0.5]],
+            evidence=['I', 'A'],
+            evidence_card=[2, 2]
+        )
+
+        extra_cpd = TabularCPD(
+            variable='E',
+            variable_card=2,
+            values=[[0.55, 0.45, 0.85, 0.75],
+                    [0.45, 0.55, 0.15, 0.25]],
+            evidence=['I', 'A'],
+            evidence_card=[2, 2]
+        )
+
+        admission_cpd = TabularCPD(
+            variable='A',
+            variable_card=2,
+            values=[[0.9, 0.4, 0.8, 0.1],
+                    [0.1, 0.6, 0.2, 0.9]],
+            evidence=['S', 'G'],
+            evidence_card=[2, 2]
+        )
+
+        student_model_7.add_cpds(grade_cpd, intel_cpd, letter_cpd, sat_cpd, extra_cpd, admission_cpd)
+        self.model = student_model_7

@@ -4,11 +4,12 @@ from pgmpy.estimators import StructureEstimator
 from autopgm.external.K2Score import K2Score
 from pgmpy.models import BayesianModel
 import random
+from collections import defaultdict
 
 
 class HillClimbSearch(StructureEstimator):
     def __init__(self, data, scoring_method=None, inbound_nodes=[], outbound_nodes=[], known_independencies=[],
-                 n_random_restarts=10, random_restart_length=5, scores=None, index=None, **kwargs):
+                 n_random_restarts=10, random_restart_length=5, scores=None, index=None, lr_variables=[], **kwargs):
         """
         Class for heuristic hill climb searches for BayesianModels, to learn
         network structure from data. `estimate` attempts to find a model with optimal score.
@@ -47,6 +48,8 @@ class HillClimbSearch(StructureEstimator):
         self.random_restart_length = random_restart_length
         self.scores = scores
         self.index = index
+        self.lr_variables = lr_variables
+        self.lr_learnable = []
 
         super(HillClimbSearch, self).__init__(data, **kwargs)
 
@@ -261,6 +264,9 @@ class HillClimbSearch(StructureEstimator):
                 current_model.add_edge(Y, X)
                 tabu_list = ([best_operation] + tabu_list)[:tabu_length]
 
+            if len(self.lr_variables) > 0:
+                self.lr_learnable.append(self.is_lr_learnable(current_model))
+
         return current_model
 
     def random_restart(self, start=None, tabu_length=0, max_indegree=None):
@@ -312,6 +318,9 @@ class HillClimbSearch(StructureEstimator):
                 best_model = current_model
                 best_score = current_score
 
+            if len(self.lr_variables) > 0:
+                self.lr_learnable.append(self.is_lr_learnable(current_model))
+
         return best_model.copy()
 
     def calculate_random_restart_length(self, i):
@@ -328,6 +337,26 @@ class HillClimbSearch(StructureEstimator):
             score = local_score(node, parents)
             self.scores[self.index][key] = score
             return score
+
+    def is_lr_learnable(self, model):
+        variable2lr = defaultdict(set)
+        for i, lr in enumerate(self.lr_variables):
+            for variable in lr:
+                variable2lr[variable].add(i)
+
+        # cross local-relation edges
+        for start, end in model.edges:
+            if variable2lr[start] & variable2lr[end] == set():
+                return False
+
+        # inbound edges from multiple tables
+        inbound = defaultdict(set)
+        for start, end in model.edges:
+            inbound[end] |= (variable2lr[start] & variable2lr[end])
+            if len(inbound[end]) > 1:
+                return False
+
+        return True
 
 
 class GlobalHillClimbSearch(object):

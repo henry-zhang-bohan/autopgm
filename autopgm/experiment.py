@@ -43,6 +43,7 @@ class Experiment(object):
         # train single Bayesian network
         self.model = self.train()
         self.inference = VariableElimination(self.model)
+        self.lr_learnable = []
 
         # synthetic data
         if synthetic:
@@ -75,10 +76,17 @@ class Experiment(object):
 
     def train(self):
         if not os.path.exists(self.data_dir + self.name + '.p'):
-            model = MultipleBayesianEstimator([self.data_dir + self.name + '_train.csv'],
-                                              n_random_restarts=self.n_random_restarts, query_targets=self.variables,
-                                              query_evidence=self.variables).merged_model
+            estimator = MultipleBayesianEstimator([self.data_dir + self.name + '_train.csv'],
+                                                  n_random_restarts=self.n_random_restarts,
+                                                  query_targets=self.variables,
+                                                  query_evidence=self.variables,
+                                                  lr_variables=self.split_cols)
+            model = estimator.merged_model
+            self.lr_learnable = estimator.lr_learnable
+
             pickle.dump(model, open(self.data_dir + self.name + '.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.lr_learnable, open(self.data_dir + self.name + '_lr_learnable.p', 'wb'),
+                        protocol=pickle.HIGHEST_PROTOCOL)
         else:
             model = pickle.load(open(self.data_dir + self.name + '.p', 'rb'))
         return model

@@ -12,7 +12,7 @@ import random
 
 class SingleBayesianEstimator(object):
     def __init__(self, single_file_parser, inbound_nodes, outbound_nodes, known_independencies=[],
-                 n_random_restarts=0, random_restart_length=0, scores=None, index=None):
+                 n_random_restarts=0, random_restart_length=0, scores=None, index=None, lr_variables=[]):
         self.single_file_parser = single_file_parser
         self.model = None
         self.hill_climb_search = HillClimbSearch(self.single_file_parser.data_frame, scores=scores, index=index,
@@ -20,7 +20,8 @@ class SingleBayesianEstimator(object):
                                                  outbound_nodes=outbound_nodes,
                                                  known_independencies=known_independencies,
                                                  n_random_restarts=n_random_restarts,
-                                                 random_restart_length=random_restart_length)
+                                                 random_restart_length=random_restart_length,
+                                                 lr_variables=lr_variables)
 
     def random_restart(self, start=None):
         self.model = self.hill_climb_search.random_restart(tabu_length=3, start=start)
@@ -38,16 +39,18 @@ class SingleBayesianEstimator(object):
 class MultipleBayesianEstimator(object):
     def __init__(self, file_names, query_targets=[], query_evidence=[], inbound_nodes=[], outbound_nodes=[],
                  known_independencies=[], n_random_restarts=0, random_restart_length=0, start=None,
-                 max_orientations=None, random_state=None):
+                 max_orientations=None, random_state=None, lr_variables=[]):
         self.multiple_file_parser = MultipleFileParser(file_names, query_targets=query_targets,
                                                        query_evidence=query_evidence)
         self.inbound_nodes = inbound_nodes
         self.outbound_nodes = outbound_nodes
         self.known_independencies = known_independencies
+        self.lr_variables = lr_variables
 
         self.orientations = self.multiple_file_parser.orientations
         self.merged_model = None
         self.max_score = -inf
+        self.lr_learnable = []
 
         # single file case
         if len(self.orientations) == 0:
@@ -73,7 +76,8 @@ class MultipleBayesianEstimator(object):
             orientation_models = [o.get() for o in o_models]
 
         # select the model with the highest combined score
-        self.merged_model, self.max_score = max(orientation_models, key=lambda x: x[1])
+        self.merged_model, self.max_score, _ = max(orientation_models, key=lambda x: x[1])
+        self.lr_learnable = [model[2] for model in orientation_models]
 
     def orientation_model(self, orientation, start=None, n_random_restarts=0, random_restart_length=0, scores=None):
         # restrict specified nodes to only have inward / outward edges
@@ -91,17 +95,20 @@ class MultipleBayesianEstimator(object):
         current_models = []
         current_data_volumes = []
         total_score = 0.
+        lr_learnable = []
         for i in range(len(self.multiple_file_parser.single_file_parsers)):
             parser = self.multiple_file_parser.single_file_parsers[i]
             estimator = SingleBayesianEstimator(parser, inbound_nodes[i], outbound_nodes[i], index=i, scores=scores,
                                                 known_independencies=self.known_independencies[:],
                                                 n_random_restarts=n_random_restarts,
-                                                random_restart_length=random_restart_length)
+                                                random_restart_length=random_restart_length,
+                                                lr_variables=self.lr_variables)
             estimator.random_restart(start=start)
             current_model = estimator.fit()
             total_score += K2Score(parser.data_frame).score(current_model)
             current_models.append(current_model)
             current_data_volumes.append(parser.data_frame.shape[0])
+            lr_learnable.append(estimator.hill_climb_search.lr_learnable)
 
         # merge individual models
         try:
@@ -110,7 +117,7 @@ class MultipleBayesianEstimator(object):
             merged_model = None
             total_score = -inf
 
-        return merged_model, total_score
+        return merged_model, total_score, lr_learnable
 
     def get_model(self):
         return self.merged_model
