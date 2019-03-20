@@ -35,11 +35,11 @@ class K2Score(StructureScore):
         [2] AM Carvalho, Scoring functions for learning Bayesian networks,
         http://www.lx.it.pt/~asmc/pub/talks/09-TA/ta_pres.pdf
         """
+        self.equivalent_sample_size = 10
         super(K2Score, self).__init__(data, **kwargs)
 
     def local_score(self, variable, parents):
-        "Computes a score that measures how much a \
-        given variable is \"influenced\" by a given list of potential parents."
+        """K2"""
 
         var_states = self.state_names[variable]
         var_cardinality = len(var_states)
@@ -57,8 +57,7 @@ class K2Score(StructureScore):
         return score
 
     def local_score_mle(self, variable, parents):
-        "Computes a score that measures how much a \
-        given variable is \"influenced\" by a given list of potential parents."
+        """MLE"""
 
         var_states = self.state_names[variable]
         state_counts = self.state_counts(variable, parents)
@@ -71,5 +70,49 @@ class K2Score(StructureScore):
                 if state_counts[parents_state][state] > 0:
                     score += state_counts[parents_state][state] * (log(state_counts[parents_state][state]) -
                                                                    log(conditional_sample_size))
+
+        return score
+
+    def local_score_bdeu(self, variable, parents):
+        """BDeu"""
+
+        var_states = self.state_names[variable]
+        var_cardinality = len(var_states)
+        state_counts = self.state_counts(variable, parents)
+        num_parents_states = float(len(state_counts.columns))
+
+        score = 0
+        for parents_state in state_counts:  # iterate over df columns (only 1 if no parents)
+            conditional_sample_size = sum(state_counts[parents_state])
+
+            score += (lgamma(self.equivalent_sample_size / num_parents_states) -
+                      lgamma(conditional_sample_size + self.equivalent_sample_size / num_parents_states))
+
+            for state in var_states:
+                if state_counts[parents_state][state] > 0:
+                    score += (lgamma(state_counts[parents_state][state] +
+                                     self.equivalent_sample_size / (num_parents_states * var_cardinality)) -
+                              lgamma(self.equivalent_sample_size / (num_parents_states * var_cardinality)))
+        return score
+
+    def local_score_bic(self, variable, parents):
+        """BIC"""
+
+        var_states = self.state_names[variable]
+        var_cardinality = len(var_states)
+        state_counts = self.state_counts(variable, parents)
+        sample_size = len(self.data)
+        num_parents_states = float(len(state_counts.columns))
+
+        score = 0
+        for parents_state in state_counts:  # iterate over df columns (only 1 if no parents)
+            conditional_sample_size = sum(state_counts[parents_state])
+
+            for state in var_states:
+                if state_counts[parents_state][state] > 0:
+                    score += state_counts[parents_state][state] * (log(state_counts[parents_state][state]) -
+                                                                   log(conditional_sample_size))
+
+        score -= 0.5 * log(sample_size) * num_parents_states * (var_cardinality - 1)
 
         return score
