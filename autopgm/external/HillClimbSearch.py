@@ -389,6 +389,9 @@ class GlobalHillClimbSearch(object):
         self.n_random_restarts = n_random_restarts
         self.random_restart_length = random_restart_length
 
+        # record training KL curve
+        self.structure_history = []
+
     def _legal_operations(self, model, tabu_list=[], max_indegree=None):
         """Generates a list of legal (= not in tabu_list) graph modifications
         for a given model, together with their score changes. Possible graph modifications:
@@ -660,6 +663,8 @@ class GlobalHillClimbSearch(object):
                 current_model.remove_edge(X, Y)
                 current_model.add_edge(Y, X)
                 tabu_list = ([best_operation] + tabu_list)[:tabu_length]
+
+            self.structure_history.append(current_model.edges)
 
         return current_model
 

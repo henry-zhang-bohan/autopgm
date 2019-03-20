@@ -1,5 +1,7 @@
 import os
 import pickle
+import pandas as pd
+import multiprocessing as mp
 from functools import reduce
 from autopgm.generator import *
 from autopgm.estimator import *
@@ -53,7 +55,7 @@ class Experiment(object):
         self.split_tables()
 
         # train merged Bayesian network
-        self.merged_model = self.merge()
+        self.merged_model, self.kl_history = self.merge()
         self.merged_inference = VariableElimination(self.merged_model)
 
         # state names
@@ -68,6 +70,7 @@ class Experiment(object):
         # save plots
         self.plot_edges(merged=False)
         self.plot_edges()
+        self.plot_kl_history()
 
     def split_tables(self):
         if not os.path.exists(self.data_dir + self.name + '_1.csv'):
@@ -90,19 +93,26 @@ class Experiment(object):
         return model
 
     def merge(self):
-        if not os.path.exists(self.data_dir + self.name + '_merged.p'):
+        if not os.path.exists(self.data_dir + self.name + '_merged.p') \
+                or not os.path.exists(self.data_dir + self.name + '_history.p'):
             # input files
             file_names = []
             for i in range(len(self.split_cols)):
                 file_names.append('{}{}_{}.csv'.format(self.data_dir, self.name, (i + 1)))
 
             # train merged model
-            model = GlobalBayesianEstimator(file_names, query_targets=self.variables,
-                                            query_evidence=self.variables).merged_model
+            estimator = GlobalBayesianEstimator(file_names, query_targets=self.variables,
+                                                query_evidence=self.variables)
+            model = estimator.merged_model
+            kl_history = self.evaluate_kl_history(estimator.structure_history)
+
             pickle.dump(model, open(self.data_dir + self.name + '_merged.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(kl_history, open(self.data_dir + self.name + '_history.p', 'wb'),
+                        protocol=pickle.HIGHEST_PROTOCOL)
         else:
             model = pickle.load(open(self.data_dir + self.name + '_merged.p', 'rb'))
-        return model
+            kl_history = pickle.load(open(self.data_dir + self.name + '_history.p', 'rb'))
+        return model, kl_history
 
     def synthesize_data(self):
         if not os.path.exists(self.data_dir + self.name + '_train_syn.csv'):
@@ -158,6 +168,16 @@ class Experiment(object):
 
         if show:
             plt.show()
+
+    def plot_kl_history(self):
+        import matplotlib.pyplot as plt
+
+        plt.figure()
+        fig_name = self.data_dir + (self.name + '_kl_history.png')
+        plt.plot(self.kl_history)
+
+        if not os.path.exists(fig_name):
+            plt.savefig(fig_name)
 
     def print_model_cpds(self):
         for cpd in self.model.get_cpds():
@@ -425,3 +445,15 @@ class Experiment(object):
 
     def merged_model_kl_divergence(self):
         return self.kl_divergence(self.merged_model)
+
+    def evaluate_kl_history(self, structure_history):
+        train_data = pd.read_csv(self.data_dir + self.name + '_train.csv')
+        kl_history = []
+
+        for structure in structure_history:
+            model = BayesianModel()
+            model.add_edges_from(structure)
+            model.fit(train_data)
+            kl_history.append(self.kl_divergence(model))
+
+        return kl_history

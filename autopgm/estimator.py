@@ -72,6 +72,9 @@ class GlobalBayesianEstimator(object):
         # merge cpds
         self.merged_model = self.merge()
 
+        # record structure history
+        self.structure_history = self.hill_climb_search.structure_history
+
     def learn_structure(self):
         self.merged_model = self.hill_climb_search.random_restart()
 
