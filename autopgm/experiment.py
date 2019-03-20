@@ -76,12 +76,10 @@ class Experiment(object):
 
     def train(self):
         if not os.path.exists(self.data_dir + self.name + '.p'):
-            estimator = MultipleBayesianEstimator([self.data_dir + self.name + '_train.csv'],
-                                                  n_random_restarts=self.n_random_restarts,
-                                                  query_targets=self.variables,
-                                                  query_evidence=self.variables,
-                                                  lr_variables=self.split_cols)
-            model = estimator.merged_model
+            estimator = SimpleBayesianEstimator(self.data_dir + self.name + '_train.csv',
+                                                lr_variables=self.split_cols,
+                                                n_random_restarts=self.n_random_restarts)
+            model = estimator.model
             self.lr_learnable = estimator.lr_learnable
 
             pickle.dump(model, open(self.data_dir + self.name + '.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)

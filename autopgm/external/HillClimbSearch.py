@@ -9,7 +9,7 @@ from collections import defaultdict
 
 class HillClimbSearch(StructureEstimator):
     def __init__(self, data, scoring_method=None, inbound_nodes=[], outbound_nodes=[], known_independencies=[],
-                 n_random_restarts=10, random_restart_length=5, scores=None, index=None, lr_variables=[], **kwargs):
+                 n_random_restarts=10, random_restart_length=5, scores=None, index=0, lr_variables=[], **kwargs):
         """
         Class for heuristic hill climb searches for BayesianModels, to learn
         network structure from data. `estimate` attempts to find a model with optimal score.
