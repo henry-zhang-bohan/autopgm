@@ -78,6 +78,9 @@ class Experiment(object):
         if plot_kl:
             self.plot_kl_history()
 
+        # record kl divergence
+        self.print_kl_divergence()
+
     def split_tables(self):
         if not os.path.exists(self.data_dir + self.name + '_1.csv'):
             file_path = self.data_dir + self.name + ('_train_syn.csv' if self.synthetic else '_train.csv')
@@ -453,6 +456,13 @@ class Experiment(object):
 
     def merged_model_kl_divergence(self):
         return self.kl_divergence(self.merged_model)
+
+    def print_kl_divergence(self):
+        model_kl = self.model_kl_divergence()
+        merged_model_kl = self.merged_model_kl_divergence()
+
+        with open(self.data_dir + self.name + '_kl.txt', 'w') as file:
+            file.write('Global KL: %f\nBN-Learn KL: %f' % (model_kl, merged_model_kl))
 
     def evaluate_kl_history(self, structure_history):
         train_data = pd.read_csv(self.data_dir + self.name + '_train.csv')
