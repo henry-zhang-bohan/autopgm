@@ -10,7 +10,8 @@ from pgmpy.inference import VariableElimination
 
 
 class Experiment(object):
-    def __init__(self, name, data_path, data_dir, split_cols, synthetic=False, show_scores=True, n_random_restarts=0):
+    def __init__(self, name, data_path, data_dir, split_cols, synthetic=False, show_scores=True, n_random_restarts=0,
+                 plot_kl=False, seed=0):
         """
         automate setting up and running experiments
         :param name: name of the experiment
@@ -26,6 +27,10 @@ class Experiment(object):
         self.split_cols = split_cols
         self.synthetic = synthetic
         self.n_random_restarts = n_random_restarts
+        self.plot_kl = plot_kl
+
+        # set random seed
+        random.seed(seed)
 
         # create directory
         if not os.path.isdir(data_dir):
@@ -70,7 +75,8 @@ class Experiment(object):
         # save plots
         self.plot_edges(merged=False)
         self.plot_edges()
-        self.plot_kl_history()
+        if plot_kl:
+            self.plot_kl_history()
 
     def split_tables(self):
         if not os.path.exists(self.data_dir + self.name + '_1.csv'):
@@ -86,15 +92,15 @@ class Experiment(object):
             self.lr_learnable = estimator.lr_learnable
 
             pickle.dump(model, open(self.data_dir + self.name + '.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
-            pickle.dump(self.lr_learnable, open(self.data_dir + self.name + '_lr_learnable.p', 'wb'),
-                        protocol=pickle.HIGHEST_PROTOCOL)
+            with open(self.data_dir + self.name + '_lr_learnable.txt', 'w') as file:
+                file.write(','.join([str(b) for b in self.lr_learnable]))
         else:
             model = pickle.load(open(self.data_dir + self.name + '.p', 'rb'))
         return model
 
     def merge(self):
-        if not os.path.exists(self.data_dir + self.name + '_merged.p') \
-                or not os.path.exists(self.data_dir + self.name + '_history.p'):
+        kl_history = None
+        if not os.path.exists(self.data_dir + self.name + '_merged.p'):
             # input files
             file_names = []
             for i in range(len(self.split_cols)):
@@ -104,14 +110,16 @@ class Experiment(object):
             estimator = GlobalBayesianEstimator(file_names, query_targets=self.variables,
                                                 query_evidence=self.variables)
             model = estimator.merged_model
-            kl_history = self.evaluate_kl_history(estimator.structure_history)
-
             pickle.dump(model, open(self.data_dir + self.name + '_merged.p', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
-            pickle.dump(kl_history, open(self.data_dir + self.name + '_history.p', 'wb'),
-                        protocol=pickle.HIGHEST_PROTOCOL)
+
+            if self.plot_kl:
+                kl_history = self.evaluate_kl_history(estimator.structure_history)
+                pickle.dump(kl_history, open(self.data_dir + self.name + '_history.p', 'wb'),
+                            protocol=pickle.HIGHEST_PROTOCOL)
         else:
             model = pickle.load(open(self.data_dir + self.name + '_merged.p', 'rb'))
-            kl_history = pickle.load(open(self.data_dir + self.name + '_history.p', 'rb'))
+            if self.plot_kl:
+                kl_history = pickle.load(open(self.data_dir + self.name + '_history.p', 'rb'))
         return model, kl_history
 
     def synthesize_data(self):
